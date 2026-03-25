@@ -6,7 +6,6 @@
                 ESC F12 F11 F10 F9  F8  F7  F6  F5  F4  F3  F2  F1  9   8   7   6   5   4   3   2   1   0
 */
 
-//#define CONTROLLER
 #define KEYBOARD
 
 // Note: Careful for name collisions.
@@ -72,38 +71,13 @@ namespace InputM {
     };
     
     enum TOGGLES {
-        Toggle_L1   = 1 << 0,  // Controller
-        Toggle_R1   = 1 << 1,  // Controller
-        Toggle_X    = 1 << 2,  // Controller
         Toggle_F1   = 1 << 3,  // Keyboard
-        Toggle_BACK = 1 << 4,  // Controller
         Toggle_H    = 1 << 5,  // Keyboard
         Toggle_N    = 1 << 6,  // Keyboard
         Toggle_P    = 1 << 7,  // Keyboard
         Toggle_M    = 1 << 8,  // Keyboard
-        Toggle_Y    = 1 << 9,  // Controller
         Toggle_B    = 1 << 10, // Keyboard
         Toggle_LC   = 1 << 11, // Mouse
-    };
-    
-    enum AXES {
-        C_LLR,
-        C_LUD,
-        C_RLR,
-        C_RUD,
-        C_L2,
-        C_R2,
-    };
-    
-    enum BUTTONS {
-        C_A,
-        C_B,
-        C_X,
-        C_Y,
-        C_L1,
-        C_R1,
-        C_BACK,
-        C_START,
     };
 }
 
@@ -119,13 +93,6 @@ struct Input {
     
     double ndc_x;
     double ndc_y;
-    
-    #if defined CONTROLLER
-    int axes_count;
-    const float* controller_axes;
-    int button_count;
-    const unsigned char* controller_buttons;
-    #endif
 };
 
 #endif

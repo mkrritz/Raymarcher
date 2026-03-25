@@ -1,9 +1,8 @@
 #ifndef UI_HPP
 #define UI_HPP
 
-// 2 quads maybe?
-
 enum struct Quads {
+    RAYMARCH,
     SCREEN,
     Count // Not really a quad.
 };

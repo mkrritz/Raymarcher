@@ -27,7 +27,3 @@ void* HeapAllocate(Heap* const heap, size_t size) {
     heap->offset += size;
     return ptr;
 }
-
-void HeapReset(Heap* const heap) {
-    heap->offset = 0;
-}

@@ -14,7 +14,10 @@ layout(std430, binding = 7) readonly buffer CameraForward {
     vec4 Forward;
 };
 
-layout(location = 0) uniform float Time; // Remove
+#include "UniformBufferObjects/Timers.glsl"
+layout(std140, binding = 0) uniform SceneUniformBufferObject {
+    TimersUBO Scene;
+};
 
 void main() {
     vec3 P = Camera.xyz;
@@ -39,9 +42,9 @@ void main() {
     );
     
     InverseView = mat4(
-        R.x, R.y+0.3*cos(Time*0.7), R.z, 0.0,
-        U.x, U.y+0.2*sin(Time), U.z, 0.0,
-       -F.x,-F.y-0.4*sin(Time*1.9),-F.z+0.5*cos(Time), 0.0,
+        R.x, R.y+0.3*cos(Scene.Timers.x*0.7), R.z, 0.0,
+        U.x, U.y+0.2*sin(Scene.Timers.x), U.z, 0.0,
+       -F.x,-F.y-0.4*sin(Scene.Timers.x*1.9),-F.z+0.5*cos(Scene.Timers.x), 0.0,
         P.x, P.y, P.z, 1.0
     );
 #endif

@@ -4,24 +4,54 @@
 #include "mkr/Window.h"
 
 void UpdateInputStateKeyboard(int, int, int, int);
-void UpdateInputMousePosition(double, double);
 void UpdateInputStateMouse(int, int, int);
+void UpdateInputMousePosition(double, double);
 void UpdateInputMouseWheel(double, double);
 
-void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+static void window_close_callback(GLFWwindow* window) {
+    printf("\nBuh bye\n");
+}
+
+static void window_size_callback(GLFWwindow* window, int width, int height) {
+    printf("\rWidth %d - Height %d\n", width, height);
+}
+
+static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+    printf("\rFramebuffer (%d, %d)\n", width, height);
+    //glViewport(0, 0, width, height);
+}
+
+static void window_pos_callback(GLFWwindow* window, int xpos, int ypos) {
+    printf("\rWindow at (%d, %d)\n", xpos, ypos);
+}
+
+static void window_focus_callback(GLFWwindow* window, int focused) {
+    if (focused) {
+        printf("\nHi\n");
+    }
+    else {
+        printf("\nBye\n");
+    }
+}
+
+static void window_refresh_callback(GLFWwindow* window) {
+    printf("Something to do here\n\n");
+}
+
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (action == GLFW_REPEAT) return; 
     UpdateInputStateKeyboard(key, scancode, action, mods);
 }
 
-void CursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
-    UpdateInputMousePosition(xpos, ypos);
-}
-
-void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
     UpdateInputStateMouse(button, action, mods);
 }
 
-void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
+    UpdateInputMousePosition(xpos, ypos);
+}
+
+static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     UpdateInputMouseWheel(xoffset, yoffset);
 }
 
@@ -43,7 +73,7 @@ static void SetWindowHints() {
     glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER,    GL_FALSE);
     glfwWindowHint(GLFW_FOCUS_ON_SHOW,              GL_TRUE);
     glfwWindowHint(GLFW_SCALE_TO_MONITOR,           GL_TRUE);
-    
+
     // Framebuffer
     glfwWindowHint(GLFW_RED_BITS,       8);
     glfwWindowHint(GLFW_GREEN_BITS,     8);
@@ -57,10 +87,16 @@ static void SetWindowHints() {
 }
 
 static void SetWindowCallbacks(GLFWwindow* const window) {
-    glfwSetKeyCallback(window, KeyCallback);
-    glfwSetCursorPosCallback(window, CursorPosCallback);
-    glfwSetMouseButtonCallback(window, MouseButtonCallback);
-    glfwSetScrollCallback(window, ScrollCallback);
+    glfwSetWindowCloseCallback(window, window_close_callback);
+    glfwSetWindowSizeCallback(window, window_size_callback);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetWindowPosCallback(window, window_pos_callback);
+    glfwSetWindowFocusCallback(window, window_focus_callback);
+    glfwSetWindowRefreshCallback(window, window_refresh_callback);
+    glfwSetKeyCallback(window, key_callback);
+    glfwSetCursorPosCallback(window, cursor_position_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 }
 
 static void SetWindowCursor(GLFWwindow* const window) {
@@ -68,7 +104,7 @@ static void SetWindowCursor(GLFWwindow* const window) {
     const int H = W; // image height
     unsigned char pixels[W * H * 4];
     memset(pixels, 0xff, sizeof(pixels));
-    
+
     int middle_pixel = (H >> 1) * (W + 1) * 4;
     
     int left_pixel = middle_pixel - 4;
@@ -99,14 +135,14 @@ static void SetWindowCursor(GLFWwindow* const window) {
     pixels[up_left_pixel + 3]     = 0;
     pixels[down_right_pixel + 3]  = 0;
     pixels[down_left_pixel + 3]   = 0;
-    
+
     GLFWimage image;
     image.width = W;
     image.height = H;
     image.pixels = pixels;
-    
+
     GLFWcursor* cursor = glfwCreateCursor(&image, W>>1, H>>1);
-    
+
     glfwSetCursor(window, cursor);
 }
 
@@ -134,8 +170,7 @@ GLFWwindow* WindowInit() {
     
     if (window) {
         glfwSetWindowPos(window,
-                        video_mode->width*0.5f - window_size.x*0.5f,
-                           //video_mode->width*1.5f - window_size.x*0.5f,
+                         video_mode->width*0.5f - window_size.x*0.5f,
                          video_mode->height*0.5f - window_size.y*0.5f);
         
         glfwMakeContextCurrent(window);
@@ -153,21 +188,23 @@ GLFWwindow* WindowInit() {
         const unsigned char* renderer = glGetString(GL_RENDERER);
         printf("  Renderer: %s\n", renderer);
         
-        GLint maxVertexTextureImageUnits;
-        glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &maxVertexTextureImageUnits);
-        printf("  Max Vertex Texture Image Units: %d\n", maxVertexTextureImageUnits);
-        
-        GLint maxFragmentTextureImageUnits;
-        glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &maxFragmentTextureImageUnits);
-        printf("  Max Fragment Texture Image Units: %d\n", maxFragmentTextureImageUnits);
-        
-        GLint maxCombinedTextureImageUnits;
-        glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxCombinedTextureImageUnits);
-        printf("  Max Combined Texture Image Units: %d\n", maxCombinedTextureImageUnits);
+        int vertex_units, fragment_units;
+        glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &vertex_units);
+        glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &fragment_units);
+        printf("  Vertex Texture Units: %d\n", vertex_units);
+        printf("  Fragment Texture Units: %d\n", fragment_units);
+
+        GLint maxTextureUnits;
+        glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxTextureUnits);
+        printf("  Max Texture Units: %d\n", maxTextureUnits);
         
         GLint maxUniforms;
         glGetIntegerv(GL_MAX_VERTEX_UNIFORM_VECTORS, &maxUniforms);
         printf("  Max Uniforms: %d\n", maxUniforms);
+        
+        GLint maxUBOSize = 0;
+        glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &maxUBOSize);
+        printf("  Max Uniform Buffer Size: %d (%d KB)\n", maxUBOSize, maxUBOSize / 1024);
         
         GLint mmaxUniformBindings;
         glGetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, &mmaxUniformBindings);
@@ -180,6 +217,18 @@ GLFWwindow* WindowInit() {
         GLint maxTextureSize;
         glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTextureSize);
         printf("  Max Texture Size: %d\n", maxTextureSize);
+        
+        GLint maxVertexTextureImageUnits;
+        glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &maxVertexTextureImageUnits);
+        printf("  Max Vertex Texture Image Units: %d\n", maxVertexTextureImageUnits);
+
+        GLint maxFragmentTextureImageUnits;
+        glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &maxFragmentTextureImageUnits);
+        printf("  Max Fragment Texture Image Units: %d\n", maxFragmentTextureImageUnits);
+
+        GLint maxCombinedTextureImageUnits;
+        glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxCombinedTextureImageUnits);
+        printf("  Max Combined Texture Image Units: %d\n", maxCombinedTextureImageUnits);
         
         GLint maxRenderbufferSize;
         glGetIntegerv(GL_MAX_RENDERBUFFER_SIZE, &maxRenderbufferSize);
@@ -237,12 +286,26 @@ GLFWwindow* WindowInit() {
         glGetIntegerv(GL_MAX_COMPUTE_SHARED_MEMORY_SIZE, &maxSharedMemorySize);
         printf("  Max shared memory size: %d (%d KB)\n", maxSharedMemorySize, maxSharedMemorySize / 1024);
         
+        //GLint nExt;
+        //glGetIntegerv(GL_NUM_EXTENSIONS, &nExt);
+        //for (int i = 0; i < nExt; i++) {
+        //    const char* name = (const char*)glGetStringi(GL_EXTENSIONS, i);
+        //    if (strcmp(name, "GL_KHR_shader_subgroup") == 0) {
+        //        printf("  Extension GL_KHR_shader_subgroup is supported\n");
+        //    }
+        //}
         printf("---------------------------------------------------------------\n");
     }
     
     SetWindowCallbacks(window);
     SetWindowCursor(window);
     
+    HWND hwnd = glfwGetWin32Window(window);
+    HICON icon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(1)); // See file 'Siac.rc'
+    if (icon) {
+        SendMessage(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)icon);
+        SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)icon);
+    }
+    
     return window;
 }
-

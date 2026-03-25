@@ -9,13 +9,21 @@ in vec2 UV; // This useless?
 in vec3 Direction;
 out vec4 FragColor;
 
-layout(location = 2)  uniform float Time;
-layout(location = 3)  uniform float Far;
+#include "UniformBufferObjects/Timers.glsl"
+layout(std140, binding = 2) uniform SceneUniformBufferObject {
+    TimersUBO Scene;
+};
+
 layout(binding = 4) uniform sampler2D Sampler;
 
-layout(std430, binding = 6) readonly buffer CameraPosition {
-    vec4 Camera;
-};
+#include "UniformBufferObjects/Camera.glsl"
+layout(std140, binding = 1) uniform CameraUniformBufferObject {       // Figure out naming of camera position and camera stuff
+    CameraUBO Camera;                                                 // Figure out naming of camera position and camera stuff
+};                                                                    // Figure out naming of camera position and camera stuff
+                                                                      // Figure out naming of camera position and camera stuff
+layout(std430, binding = 6) readonly buffer CameraPositionBuffer {    // Figure out naming of camera position and camera stuff
+    vec4 CameraPosition;                                              // Figure out naming of camera position and camera stuff
+};                                                                    // Figure out naming of camera position and camera stuff
 
 const vec2 RegionMin = vec2(0.0, 0.0);
 const vec2 RegionMax = vec2(300.0, 300.0);
@@ -52,7 +60,7 @@ float GetSceneSDF(vec3 Position) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void March(out Surface surface) {
-    surface = Surface(Camera.xyz,
+    surface = Surface(CameraPosition.xyz,
                       vec3(0.0, 1.0, 0.0),
                       0.0,
                       false);
@@ -61,9 +69,9 @@ void March(out Surface surface) {
     float Distance = 0.0;
     
     for(int Iteration = 0; Iteration < 64; Iteration++) {
-        if(Distance > Far + 1000) break;
+        if(Distance > Camera.Attributes.z + 1000) break;
         
-        vec3 Position = Camera.xyz + Dir * Distance;
+        vec3 Position = CameraPosition.xyz + Dir * Distance;
         
         // Closest surface in any direction
         float ClosestSurface = GetSceneSDF(Position);
@@ -101,11 +109,11 @@ void main() {
         surface.Normal = SceneNormal(surface.Position);
         vec3 baseColor = SceneMaterial(surface.Position);
         
-        vec3 Sun = normalize(vec3(cos(Time), 2.0, sin(Time)));
+        vec3 Sun = normalize(vec3(cos(Scene.Timers.x), 2.0, sin(Scene.Timers.x)));
         float diffuse = max(dot(surface.Normal, Sun), 0.5);
         Color = baseColor * diffuse;
     } else {
-        float x = (sin(Time) + 1.0) * 0.5;
+        float x = (sin(Scene.Timers.x) + 1.0) * 0.5;
         Color = mix(vec3(x,0.5,0.2), vec3(0.6-0.3*x,0.3-0.2*x,0.5), UV.y);
     }
     
@@ -141,8 +149,8 @@ vec3 TerrainMaterial(vec3 Position) {
     vec3 ice  = vec3(0.9,0.9,0.9);
 
     vec3 base;
-    if(h < 3.0 + 0.1 * cos(Time)) base = dirt;
-    else if(h < 6.0 + 0.1 * cos(Time + PI)) base = water;
+    if(h < 3.0 + 0.1 * cos(Scene.Timers.x)) base = dirt;
+    else if(h < 6.0 + 0.1 * cos(Scene.Timers.x + PI)) base = water;
     else if(h < 12.0) base = dirt;
     else if(h < 14.0) base = grass;
     else if(h < 16.0) base = rock;

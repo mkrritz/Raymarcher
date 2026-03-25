@@ -13,10 +13,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image/stb_image.h"
 
-static std::mt19937 gen(time(nullptr));
-static std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
-static std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
-
 GLFWwindow* WindowInit();
 
 //Memory
@@ -51,45 +47,57 @@ void RenderQuadToScreen(const Shader* const [],
 static void RenderWorld(const Shader* const shaders[],
                         const Camera* const camera,
                         const UI* const ui,
+                        GLuint scene_handle,
                         float TotalTime,
-                        GLuint map) {
+                        GLuint map,
+                        uint32_t using_sampler) {
     const Shader* shader;
+    
+    switch(using_sampler) {                                        // This is fine...
+        case 0: {                                                  // This is fine...
+            glBindSampler(4, camera->sampler_clamp_linear);        // This is fine...
+            break;                                                 // This is fine...
+        }                                                          // This is fine...
+        case 1: {                                                  // This is fine...
+            glBindSampler(4, camera->sampler_clamp_nearest);       // This is fine...
+            break;                                                 // This is fine...
+        }
+    }
     
     shader = shaders[static_cast<uint32_t>(Shaders::Raymarch)];
     glUseProgram(shader->ID);
     
-    glUniform1f(0, camera->aspect);
-    glUniform1f(1, camera->tan_half_fov);
-    glUniform1f(2, TotalTime);
-    glUniform1f(3, camera->far_plane);
-    
-    glBindBufferBase(GL_UNIFORM_BUFFER, 0, ui->ubo_handle[static_cast<uint32_t>(Quads::SCREEN)]);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, ui->ubo_handle[static_cast<uint32_t>(Quads::RAYMARCH)]);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 1, camera->ubo_handle);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 2, scene_handle);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, camera->position_buffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, camera->inverse_view_buffer);
     glBindTextureUnit(4, map);
-    
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    
     glBindTextureUnit(4, 0);
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 1, 0);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 2, 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, 0);
 }
 
 static void UpdateCamera(const Shader* const shaders[],
                          Camera* const camera,
-                         Input* const input,
+                         GLuint scene_handle,
                          float TotalTime,
                          float dt) {
     const Shader* shader;
     
     shader = shaders[static_cast<uint32_t>(Shaders::View)];
     glUseProgram(shader->ID);
-    glUniform1f(0, TotalTime);
+    
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, scene_handle);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, camera->inverse_view_buffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, camera->position_buffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, camera->forward_buffer);
     glDispatchCompute(1, 1, 1);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, 0);
@@ -105,14 +113,17 @@ static void HandleInput(Input* const input,
         camera->fov -= input->wheel;
         camera->tan_half_fov = glm::tan(glm::radians(camera->fov * 0.5));
         input->wheel = 0;
+        
+        camera->ubo->Attributes.y = camera->tan_half_fov;
     }
     
-    glm::vec4& position = camera->CPU.position;
-    glm::vec4& forward  = camera->CPU.forward;
-    glm::vec4& right    = camera->CPU.right;
-    glm::vec4& up       = camera->CPU.up;
-    float& yaw          = camera->CPU.yaw;
-    float& pitch        = camera->CPU.pitch;
+    glm::vec4 position  = *camera->position;
+    glm::vec4 forward   = *camera->forward;
+    
+    glm::vec4& right    = camera->right;
+    glm::vec4& up       = camera->up;
+    float& yaw          = camera->yaw;
+    float& pitch        = camera->pitch;
     
     if (input->mouse & InputM::LEFT_CLICK) {
         float sensitivity = 20.0f;
@@ -145,9 +156,12 @@ static void HandleInput(Input* const input,
     
     *camera->position = position;
     *camera->forward  = forward;
-    glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
-    
 }
+
+struct UniformBufferObjectScene {
+    glm::vec4 Timers;
+    // Sun position and whatnot
+};
 
 int main() {
     GLFWwindow* window;
@@ -168,6 +182,20 @@ int main() {
     UI* const ui = (UI*)heaps[static_cast<uint32_t>(Heaps::UI)]->memory;
     
     Quad& quad = ui->quads[static_cast<uint32_t>(Quads::SCREEN)];
+    
+    GLuint scene_handle;
+    UniformBufferObjectScene* scene;
+    
+    glCreateBuffers(1, &scene_handle);
+    glNamedBufferStorage(scene_handle,
+                         sizeof(UniformBufferObjectScene),
+                         nullptr,
+                         GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+    scene = (UniformBufferObjectScene*)glMapNamedBufferRange(
+            scene_handle,
+            0,
+            sizeof(UniformBufferObjectScene),
+            GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
     
     glBindVertexArray(ui->vao); // There is only quad rendering happening.
     
@@ -220,6 +248,8 @@ int main() {
         TotalTime += DeltaTime;
         EveryTwoSeconds += DeltaTime;
         
+        scene->Timers.x = TotalTime;
+        
         UpdateCount += 1;
         glfwPollEvents();
         
@@ -237,16 +267,16 @@ int main() {
             
             HandleInput(input, camera, dt);
             
-            UpdateCamera(shaders, camera, input, TotalTime, dt);
+            UpdateCamera(shaders, camera, scene_handle, TotalTime, dt);
             
-            printf("Camera (%.2f, %.2f, %.2f) \r", camera->CPU.position.x, camera->CPU.position.y, camera->CPU.position.z);
+            printf("Camera (%.2f, %.2f, %.2f) \r", camera->position->x, camera->position->y, camera->position->z);
         }
         
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, quad.framebuffer);
         glClearColor(1, 0, 0, 0); // Red
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        #if 1 // Remove this when volume is done
+        #if 1
         if (input->letters & InputM::P) {
             if (input->toggles & InputM::Toggle_P) {
                 events |= EVENT_CHANGE_SAMPLER;
@@ -260,20 +290,10 @@ int main() {
                 using_sampler = (using_sampler + 1) % 2;
             }
         }
-        glBindSampler(0, camera->sampler_clamp_linear);      // FIX THIS
-        switch(using_sampler) {
-            case 0: {
-                glBindSampler(4, camera->sampler_clamp_linear);      // FIX THIS
-                break;                                               // FIX THIS
-            }                                                        // FIX THIS
-            case 1: {                                                // FIX THIS
-                glBindSampler(4, camera->sampler_clamp_nearest);     // FIX THIS
-                break;                                               // FIX THIS
-            }
-        }
+        
         #endif
         
-        RenderWorld(shaders, camera, ui, TotalTime, map); // fix ui not here
+        RenderWorld(shaders, camera, ui, scene_handle, TotalTime, map, using_sampler);
         
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
         glClearColor(0, 0, 1, 0); // Blue

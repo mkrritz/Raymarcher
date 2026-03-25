@@ -8,8 +8,10 @@ layout(std140, binding = 0) uniform UIUniformBufferObject {
     UIUBO UI;
 };
 
-layout(location = 0) uniform float Aspect;
-layout(location = 1) uniform float TanHalfFOV;
+#include "UniformBufferObjects/Camera.glsl"
+layout(std140, binding = 1) uniform CameraUniformBufferObject {
+    CameraUBO Camera;
+};
 
 layout(std430, binding = 7) readonly buffer CameraInverseView {
     mat4 InverseView;
@@ -21,6 +23,9 @@ void main() {
     gl_Position = vec4(UI.Rect.x + UV.x * UI.Rect.z,
                        UI.Rect.y + UV.y * UI.Rect.w,
                        0.0, 1.0);
+    
+    const float Aspect = Camera.Attributes.x;
+    const float TanHalfFOV = Camera.Attributes.y;
     
     vec2 NDC = (UV * 2.0 - 1.0);
     vec3 ViewSpaceDirection = normalize(vec3(NDC.x * TanHalfFOV * Aspect,

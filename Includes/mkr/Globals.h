@@ -8,6 +8,4 @@
 */
 extern volatile uint64_t shader_slots_to_reload;
 
-//extern pthread_mutex_t mutex_1;
-
 #endif

@@ -1,6 +1,10 @@
 #ifndef CAMERA_HPP
 #define CAMERA_HPP
 
+struct UniformBufferObjectCamera {
+    glm::vec4 Attributes;
+};
+
 struct Camera {
     GLuint   sampler_clamp_nearest;
     GLuint   sampler_clamp_linear;
@@ -20,14 +24,13 @@ struct Camera {
     float near_plane;
     float far_plane;
     
-    struct {
-        glm::vec4 position;
-        glm::vec4 forward;
-        glm::vec4 up;
-        glm::vec4 right;
-        float yaw;
-        float pitch;
-    } CPU;
+    GLuint ubo_handle;
+    UniformBufferObjectCamera* ubo;
+    
+    glm::vec4 up;
+    glm::vec4 right;
+    float yaw;
+    float pitch;
     
 };
 

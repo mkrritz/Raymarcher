@@ -15,6 +15,8 @@ void RenderQuadToScreen(const Shader* const shaders[],
                         const GLuint texture) {
     const Shader* shader = shaders[static_cast<uint32_t>(Shaders::DrawTexture)];
     
+    glBindSampler(0, camera->sampler_clamp_linear);
+    
     glUseProgram(shader->ID);
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, ui->ubo_handle[static_cast<uint32_t>(Quads::SCREEN)]);
     glBindTextureUnit(0, texture);
@@ -46,6 +48,7 @@ void UIInit(Heap* const heap) {
     
     UniformBufferObjectUI buffer[static_cast<uint32_t>(Quads::Count)];
     buffer[static_cast<uint32_t>(Quads::SCREEN)].rect = glm::vec4(-1.0f, -1.0f, 2.0f, 2.0f);
+    buffer[static_cast<uint32_t>(Quads::RAYMARCH)].rect = glm::vec4(-0.95f, -0.95f, 1.9f, 1.9f);
     glCreateBuffers(static_cast<uint32_t>(Quads::Count), ui->ubo_handle);
     for (uint32_t index = 0; index < static_cast<uint32_t>(Quads::Count); index++) {
         glNamedBufferStorage(ui->ubo_handle[index],

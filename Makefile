@@ -1,6 +1,6 @@
 
 APP_NAME     := Raymarcher
-APP_ICON     := Raymarcher
+APP_ICON     := Icon
 
 COMPILER     := g++
 INCLUDE_DIR  := Includes
@@ -33,7 +33,7 @@ SOURCES = \
 	Window.cpp
 
 OBJECTS       := $(SOURCES:%.cpp=$(OBJECT_DIR)/%.o)
-#OBJECTS       += $(OBJECT_DIR)/$(APP_ICON).o
+OBJECTS       += $(OBJECT_DIR)/$(APP_ICON).o
 ASM_FILES     := $(SOURCES:%.cpp=$(ASSEMBLY_DIR)/%.s)
 DEPENDENCIES  := $(OBJECTS:.o=.d)
 
@@ -43,7 +43,11 @@ assembly: $(ASM_FILES)
 ##############################################################
 
 ##############################################################
-$(OBJECT_DIR)/$(APP_ICON).o: $(APP_ICON).rc | $(OBJECT_DIR)
+$(APP_ICON).ico: $(APP_ICON).png
+	@echo Converting PNG to ICO
+	@magick $(APP_ICON).png -define icon:auto-resize=256,128,64,48,32,16 $(APP_ICON).ico
+
+$(OBJECT_DIR)/$(APP_ICON).o: $(APP_ICON).rc $(APP_ICON).ico | $(OBJECT_DIR)
 	@echo Compiling $<...
 	@windres $< -O coff -o $@
 ##############################################################
@@ -87,6 +91,7 @@ clean:
 	@if exist $(subst /,\,$(RELEASE_DIR)) rmdir /s /q $(subst /,\,$(RELEASE_DIR))
 	@if exist $(subst /,\,$(INCLUDE_DIR))\pch.h.gch del /f /q $(subst /,\,$(INCLUDE_DIR))\pch.h.gch
 	@if exist $(subst /,\,$(BINARY_DIR))\$(APP_NAME).exe del /f /q $(subst /,\,$(BINARY_DIR))\$(APP_NAME).exe
+	@if exist $(APP_ICON).ico del /f /q $(APP_ICON).ico
 
 .PHONY: release
 release:
