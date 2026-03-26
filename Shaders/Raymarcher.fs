@@ -39,8 +39,8 @@ struct Surface {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 vec2 WorldToUV(vec2 Position) {
-    return clamp((Position - RegionMin) / (RegionMax - RegionMin), 0.0, 1.0);
-    //return fract((Position - RegionMin) / (RegionMax - RegionMin));
+    //return clamp((Position - RegionMin) / (RegionMax - RegionMin), 0.0, 1.0);
+    return fract((Position - RegionMin) / (RegionMax - RegionMin));
 }
 
 float SampleMap(vec2 Position) {
@@ -51,9 +51,22 @@ float SampleMap(vec2 Position) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+vec3 GetSunPosition() {
+    float speed = 2.0;
+    return vec3(150,100,150) +
+           vec3(100.0*cos(Scene.Timers.x * speed),
+                150.0*cos(Scene.Timers.x * speed),
+                100.0*sin(Scene.Timers.x * speed));
+}
+
+float SphereSDF(vec3 Position, vec3 Center) {
+    return length(Position - Center) - 10;
+}
+
 float GetSceneSDF(vec3 Position) {
     float Terrain = Position.y - SampleMap(Position.xz);
-    return Terrain;
+    float Sphere  = SphereSDF(Position, GetSunPosition());
+    return min(Terrain, Sphere);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -94,8 +107,6 @@ void March(out Surface surface) {
 #if 1 // Some basic lighting
 vec3 SceneNormal(vec3);
 vec3 SceneMaterial(vec3);
-vec3 TreeMaterial(vec3);
-vec3 TerrainNormal(vec3);
 vec3 TerrainMaterial(vec3);
 #endif
 
@@ -109,8 +120,8 @@ void main() {
         surface.Normal = SceneNormal(surface.Position);
         vec3 baseColor = SceneMaterial(surface.Position);
         
-        vec3 Sun = normalize(vec3(cos(Scene.Timers.x), 2.0, sin(Scene.Timers.x)));
-        float diffuse = max(dot(surface.Normal, Sun), 0.5);
+        vec3 Sun = normalize(GetSunPosition());
+        float diffuse = max(4*dot(surface.Normal, Sun), 0.25);
         Color = baseColor * diffuse;
     } else {
         float x = (sin(Scene.Timers.x) + 1.0) * 0.5;
@@ -123,24 +134,11 @@ void main() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-vec3 TerrainNormal(vec3 Position) {
-    vec2 uv = WorldToUV(Position.xz); // what?
-    ivec2 texSize = textureSize(Sampler, 0);
-    vec2 texelSize = 2.0 / vec2(texSize);
 
-    float hL = texture(Sampler, uv + vec2(-texelSize.x, 0.0)).r;
-    float hR = texture(Sampler, uv + vec2( texelSize.x, 0.0)).r;
-    float hU = texture(Sampler, uv + vec2(0.0, -texelSize.y)).r;
-    float hD = texture(Sampler, uv + vec2(0.0,  texelSize.y)).r;
-
-    vec3 dx = vec3(2.0*texelSize.x, hR - hL, 0.0);
-    vec3 dz = vec3(0.0, hD - hU, 2.0*texelSize.y);
-    return normalize(cross(dz, dx));
-}
 
 vec3 TerrainMaterial(vec3 Position) {
     float h = Position.y;
-    float slope = max(0.4, dot(TerrainNormal(Position), vec3(0.0,1.0,0.0)));
+    float slope = max(0.4, dot(SceneNormal(Position), vec3(0.0,1.0,0.0)));
 
     vec3 water = vec3(0.0,0.2,0.6);
     vec3 dirt  = vec3(0.4,0.3,0.1);
@@ -162,11 +160,17 @@ vec3 TerrainMaterial(vec3 Position) {
 
 vec3 SceneMaterial(vec3 Position) {
     float Terrain = Position.y - SampleMap(Position.xz);
+    float Sphere  = SphereSDF(Position, GetSunPosition());
+    
+    if(Sphere < Terrain) {
+        return vec3(1.0, 0.9, 0.6);
+    }
+
     return TerrainMaterial(Position);
 }
 
 vec3 SceneNormal(vec3 Position) {
-    float eps = 0.1;
+    const float eps = ONE_CENTIMETER;
     vec3 n;
     n.x = GetSceneSDF(Position + vec3(eps,0,0)) - GetSceneSDF(Position - vec3(eps,0,0));
     n.y = GetSceneSDF(Position + vec3(0,eps,0)) - GetSceneSDF(Position - vec3(0,eps,0));

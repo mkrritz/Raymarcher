@@ -125,6 +125,8 @@ static void HandleInput(Input* const input,
     float& yaw          = camera->yaw;
     float& pitch        = camera->pitch;
     
+    float speed = 1.0f;
+    
     if (input->mouse & InputM::LEFT_CLICK) {
         float sensitivity = 20.0f;
         yaw   -= (input->x_previous - input->x_current) * dt * sensitivity;
@@ -140,12 +142,15 @@ static void HandleInput(Input* const input,
         forward = glm::normalize(glm::vec4(new_forward, 0));
         right   = glm::normalize(glm::vec4(glm::cross(glm::vec3(forward), glm::vec3(0,1,0)), 0));
         up      = glm::normalize(glm::vec4(glm::cross(glm::vec3(right), glm::vec3(forward)), 0));
+        
+        speed = 0.1f;
     }
     
-    float speed = 1.0f;
-    if (input->special & InputM::N1) speed = 5.0f;
-    if (input->special & InputM::N2) speed = 10.0f;
-    if (input->special & InputM::N3) speed = 100.0f;
+    if (input->special & InputM::N2) {
+        speed *= 10.0f;
+    } else if (input->special & InputM::N3) {
+        speed *= 100.0f;
+    }
     
     if (input->letters & InputM::W) position += speed * forward * dt;
     if (input->letters & InputM::S) position -= speed * forward * dt;
