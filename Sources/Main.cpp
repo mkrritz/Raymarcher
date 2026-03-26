@@ -1,5 +1,6 @@
 
 #include "pch.h"
+#include <cstdlib>
 
 #include "mkr/Assert.h"
 #include "mkr/Input.h"
@@ -50,6 +51,7 @@ static void RenderWorld(const Shader* const shaders[],
                         GLuint scene_handle,
                         float TotalTime,
                         GLuint map,
+                        GLuint volume,
                         uint32_t using_sampler) {
     const Shader* shader;
     
@@ -72,6 +74,7 @@ static void RenderWorld(const Shader* const shaders[],
     glBindBufferBase(GL_UNIFORM_BUFFER, 2, scene_handle);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, camera->position_buffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, camera->inverse_view_buffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, volume);
     glBindTextureUnit(4, map);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindTextureUnit(4, 0);
@@ -80,6 +83,7 @@ static void RenderWorld(const Shader* const shaders[],
     glBindBufferBase(GL_UNIFORM_BUFFER, 2, 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, 0);
 }
 
 static void UpdateCamera(const Shader* const shaders[],
@@ -225,6 +229,25 @@ int main() {
         stbi_image_free(img);
     }
     
+    GLuint volume;
+    {
+        const int VOLUME_SIZE = 256;
+        const int TOTAL_VOXELS = VOLUME_SIZE * VOLUME_SIZE * VOLUME_SIZE;
+        // 64MB for 32-bit float SDF values
+        const int FLOAT_COUNT = TOTAL_VOXELS;
+        
+        float* volumeData = new float[FLOAT_COUNT];
+        srand(42);
+        for (int i = 0; i < FLOAT_COUNT; i++) {
+            // Store random distance in range [0, 200]
+            volumeData[i] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 1.0f;
+        }
+        
+        glCreateBuffers(1, &volume);
+        glNamedBufferStorage(volume, FLOAT_COUNT * sizeof(float), volumeData, 0);
+        delete[] volumeData;
+    }
+    
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -298,7 +321,7 @@ int main() {
         
         #endif
         
-        RenderWorld(shaders, camera, ui, scene_handle, TotalTime, map, using_sampler);
+        RenderWorld(shaders, camera, ui, scene_handle, TotalTime, map, volume, using_sampler);
         
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
         glClearColor(0, 0, 1, 0); // Blue
