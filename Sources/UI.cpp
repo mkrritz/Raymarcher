@@ -4,7 +4,6 @@
 #include "mkr/Assert.h"
 #include "mkr/Memory.h"
 #include "mkr/UI.h"
-#include "mkr/Input.h"
 #include "mkr/Shader.h"
 #include "mkr/Camera.h"
 #include "mkr/Window.h"
@@ -49,6 +48,7 @@ void UIInit(Heap* const heap) {
     UniformBufferObjectUI buffer[static_cast<uint32_t>(Quads::Count)];
     buffer[static_cast<uint32_t>(Quads::SCREEN)].rect = glm::vec4(-1.0f, -1.0f, 2.0f, 2.0f);
     buffer[static_cast<uint32_t>(Quads::RAYMARCH)].rect = glm::vec4(-0.95f, -0.95f, 1.9f, 1.9f);
+    
     glCreateBuffers(static_cast<uint32_t>(Quads::Count), ui->ubo_handle);
     for (uint32_t index = 0; index < static_cast<uint32_t>(Quads::Count); index++) {
         glNamedBufferStorage(ui->ubo_handle[index],

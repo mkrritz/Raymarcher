@@ -140,7 +140,6 @@ static void* ObserveDirectoryChanges(void* arg) {
     return nullptr;
 }
 
-
 struct ShaderConfig {
     const char* const vs_name;
     const char* const gs_name;

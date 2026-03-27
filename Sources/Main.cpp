@@ -22,6 +22,11 @@ void HeapsInit(Heap*[]);
 
 // Camera
 void CameraInit(Heap* const);
+void UpdateCamera(const Shader* const [],
+                  Camera* const,
+                  GLuint,
+                  float,
+                  float);
 // Camera
 
 // Shader
@@ -45,15 +50,15 @@ void RenderQuadToScreen(const Shader* const [],
 
 #define EVENT_CHANGE_SAMPLER 0b100
 
-static void RenderWorld(const Shader* const shaders[],
-                        const Camera* const camera,
-                        const UI* const ui,
-                        GLuint scene_handle,
-                        float TotalTime,
-                        GLuint map,
-                        GLuint volume,
-                        uint32_t using_sampler) {
-    const Shader* shader;
+static void Render(const Shader* const shaders[],
+                   const Camera* const camera,
+                   const UI* const ui,
+                   GLuint scene_handle,
+                   float TotalTime,
+                   GLuint map,
+                   GLuint volume,
+                   uint32_t using_sampler) {
+    const Shader* shader = shaders[static_cast<uint32_t>(Shaders::Raymarch)];
     
     switch(using_sampler) {                                        // This is fine...
         case 0: {                                                  // This is fine...
@@ -66,9 +71,7 @@ static void RenderWorld(const Shader* const shaders[],
         }
     }
     
-    shader = shaders[static_cast<uint32_t>(Shaders::Raymarch)];
     glUseProgram(shader->ID);
-    
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, ui->ubo_handle[static_cast<uint32_t>(Quads::RAYMARCH)]);
     glBindBufferBase(GL_UNIFORM_BUFFER, 1, camera->ubo_handle);
     glBindBufferBase(GL_UNIFORM_BUFFER, 2, scene_handle);
@@ -84,30 +87,6 @@ static void RenderWorld(const Shader* const shaders[],
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, 0);
-}
-
-static void UpdateCamera(const Shader* const shaders[],
-                         Camera* const camera,
-                         GLuint scene_handle,
-                         float TotalTime,
-                         float dt) {
-    const Shader* shader;
-    
-    shader = shaders[static_cast<uint32_t>(Shaders::View)];
-    glUseProgram(shader->ID);
-    
-    glBindBufferBase(GL_UNIFORM_BUFFER, 0, scene_handle);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, camera->inverse_view_buffer);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, camera->position_buffer);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, camera->forward_buffer);
-    glDispatchCompute(1, 1, 1);
-    glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, 0);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, 0);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, 0);
-    
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-    
 }
 
 static void HandleInput(Input* const input,
@@ -287,13 +266,27 @@ int main() {
             ReloadShader(heaps[static_cast<uint32_t>(Heaps::Shader)], slot);
         }
         
-        input = NextRecordedInputState();
-        
         while(AccumulatorTime >= dt) {
             AccumulatorTime -= dt;
             FixedUpdateCount += 1;
             
+            input = NextRecordedInputState();
+            
             HandleInput(input, camera, dt);
+            
+            if (input->letters & InputM::P) {
+                if (input->toggles & InputM::Toggle_P) {
+                    events |= EVENT_CHANGE_SAMPLER;
+                }
+                input->toggles &= ~InputM::Toggle_P;
+            } else input->toggles |= InputM::Toggle_P;
+            
+            if (events) {
+                if (events & EVENT_CHANGE_SAMPLER) {
+                    events &= ~EVENT_CHANGE_SAMPLER;
+                    using_sampler = 1 - using_sampler;
+                }
+            }
             
             UpdateCamera(shaders, camera, scene_handle, TotalTime, dt);
             
@@ -304,24 +297,7 @@ int main() {
         glClearColor(1, 0, 0, 0); // Red
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        #if 1
-        if (input->letters & InputM::P) {
-            if (input->toggles & InputM::Toggle_P) {
-                events |= EVENT_CHANGE_SAMPLER;
-            }
-            input->toggles &= ~InputM::Toggle_P;
-        } else input->toggles |= InputM::Toggle_P;
-        
-        if (events) {
-            if (events & EVENT_CHANGE_SAMPLER) {
-                events &= ~EVENT_CHANGE_SAMPLER;
-                using_sampler = (using_sampler + 1) % 2;
-            }
-        }
-        
-        #endif
-        
-        RenderWorld(shaders, camera, ui, scene_handle, TotalTime, map, volume, using_sampler);
+        Render(shaders, camera, ui, scene_handle, TotalTime, map, volume, using_sampler);
         
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
         glClearColor(0, 0, 1, 0); // Blue

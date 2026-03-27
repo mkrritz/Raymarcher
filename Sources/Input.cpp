@@ -57,9 +57,8 @@ void UpdateInputMousePosition(double x, double y) {
     _input.y_previous = _input.y_current;
     _input.x_current  = x;
     _input.y_current  = y;
-    
-    _input.ndc_x = -1.0f + 2.0f * x / WINDOW_WIDTH;
-    _input.ndc_y =  1.0f - 2.0f * y / WINDOW_HEIGHT;
+    _input.ndc_x = -1.0f + 2.0f * x / double(WINDOW_WIDTH);
+    _input.ndc_y =  1.0f - 2.0f * y / double(WINDOW_HEIGHT);
 }
 
 void UpdateInputMouseWheel(double xoffset, double yoffset) {

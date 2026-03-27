@@ -301,7 +301,7 @@ GLFWwindow* WindowInit() {
     SetWindowCursor(window);
     
     HWND hwnd = glfwGetWin32Window(window);
-    HICON icon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(1)); // See file 'Siac.rc'
+    HICON icon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(1)); // See file 'Icon.rc'
     if (icon) {
         SendMessage(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)icon);
         SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)icon);

@@ -24,7 +24,7 @@ void main() {
                        UI.Rect.y + UV.y * UI.Rect.w,
                        0.0, 1.0);
     
-    const float Aspect = Camera.Attributes.x;
+    const float Aspect     = Camera.Attributes.x;
     const float TanHalfFOV = Camera.Attributes.y;
     
     vec2 NDC = (UV * 2.0 - 1.0);
