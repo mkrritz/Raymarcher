@@ -76,6 +76,7 @@ namespace InputM {
         Toggle_N    = 1 << 6,  // Keyboard
         Toggle_P    = 1 << 7,  // Keyboard
         Toggle_M    = 1 << 8,  // Keyboard
+        Toggle_O    = 1 << 9,  // Keyboard
         Toggle_B    = 1 << 10, // Keyboard
         Toggle_LC   = 1 << 11, // Mouse
     };

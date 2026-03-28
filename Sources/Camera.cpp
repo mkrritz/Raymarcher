@@ -49,8 +49,9 @@ void CameraInit(Heap* const heap) {
     camera->near_plane = 0.1f;
     camera->far_plane  = 250.0f;
     
-    glm::vec4 position = glm::vec4(-31.86, 181.21, -14.60, 1.0);
-    glm::vec4 forward  = glm::normalize(glm::vec4(-glm::vec3(position), 0));
+    glm::vec4 position = glm::vec4(14.49, 45.95, 26.96, 1.0);
+    glm::vec3 target   = glm::vec3(150.0, 150.0, 150.0);
+    glm::vec4 forward  = glm::normalize(glm::vec4(target - glm::vec3(position), 0));
     camera->up       = glm::normalize(glm::vec4(0, 1, 0, 0));
     camera->right    = glm::normalize(glm::vec4(glm::cross(glm::vec3(forward), glm::vec3(camera->up)), 0));
     

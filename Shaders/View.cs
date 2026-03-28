@@ -33,18 +33,18 @@ void main() {
     );
 }
 
-#if 0
+/*
     View = mat4(
         R.x,        U.x,       -F.x,      0.0,
         R.y,        U.y,       -F.y,      0.0,
         R.z,        U.z,       -F.z,      0.0,
        -dot(R, P), -dot(U, P), dot(F, P), 1.0
     );
-    
+
     InverseView = mat4(
         R.x, R.y+0.3*cos(Scene.Timers.x*0.7), R.z, 0.0,
         U.x, U.y+0.2*sin(Scene.Timers.x), U.z, 0.0,
        -F.x,-F.y-0.4*sin(Scene.Timers.x*1.9),-F.z+0.5*cos(Scene.Timers.x), 0.0,
         P.x, P.y, P.z, 1.0
     );
-#endif
+*/

@@ -25,16 +25,14 @@ layout(std430, binding = 6) readonly buffer CameraPositionBuffer {    // Figure 
     vec4 CameraPosition;                                              // Figure out naming of camera position and camera stuff
 };                                                                    // Figure out naming of camera position and camera stuff
 
-layout(std430, binding = 8) readonly buffer VolumeBuffer {
-    float VolumeData[];
-};
+const float VolumeWorldSize = 256.0;
+layout(binding = 5) uniform sampler3D VolumeSampler;
 
 float SampleVolume(vec3 pos) {
-    ivec3 ipos = ivec3(floor(pos));
-    ipos = clamp(ipos, ivec3(0), ivec3(255));
-    
-    int index = ipos.x + ipos.y * 256 + ipos.z * 256 * 256;
-    return VolumeData[index];
+    // sampler3D expects normalized uvw coordinates [0, 1]
+    // Since the volume is 256x256x256, but we want it to cover 50 units in the world,
+    // we divide our local position by the world-size of the volume.
+    return texture(VolumeSampler, pos / VolumeWorldSize).r;
 }
 
 const vec2 RegionMin = vec2(0.0, 0.0);
@@ -64,8 +62,8 @@ float SampleMap(vec2 Position) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 vec3 GetSunPosition() {
-    float speed = 2.0;
-    return vec3(150,100,150) +
+    float speed = 1.0;
+    return vec3(150,150,150) +
            vec3(100.0*cos(Scene.Timers.x * speed),
                 150.0*cos(Scene.Timers.x * speed),
                 100.0*sin(Scene.Timers.x * speed));
@@ -80,16 +78,18 @@ float GetSceneSDF(vec3 Position) {
     float Sphere  = SphereSDF(Position, GetSunPosition());
     
     // VOLUME, BRING A BETTER VOLUME
-    // Region offset: Add multiples of 256.0 to shift the volume to different block regions
-    vec3 RegionOffset = vec3(0.0, 0.0, 0.0);
+    // To center a size-50 volume at (150,150,150), start it at (125,125,125)
+    vec3 RegionOffset = vec3(75.0, 75.0, 75.0);
     vec3 LocalPosition = Position - RegionOffset;
+    
     // Evaluate the volume specifically for this region
     float VolumeDist = SampleVolume(LocalPosition);
-    // Create a bounding box distance field for the region from [0, 256]
-    // Center is (128,128,128), and Half-Size is (128,128,128)
-    vec3 d = abs(LocalPosition - vec3(128.0)) - vec3(128.0);
+    // Create a bounding box distance field for the region from [0, 50]
+    // Center is (25, 25, 25), and Half-Size is (25, 25, 25)
+    float HalfSize = VolumeWorldSize * 0.5;
+    vec3 d = abs(LocalPosition - vec3(HalfSize)) - vec3(HalfSize);
     float BoxDist = length(max(d, 0.0)) + min(max(d.x, max(d.y, d.z)), 0.0);
-    // Combining a volume with a bounding box uses max() for intersection!
+    // Intersection of noise and box
     float BoundedVolume = max(BoxDist, VolumeDist);
     
     return min(min(Terrain, Sphere), BoundedVolume);
@@ -108,7 +108,7 @@ void March(out Surface surface) {
     const vec3 Dir = normalize(Direction);
     float Distance = 0.0;
     
-    for(int Iteration = 0; Iteration < 64; Iteration++) {
+    for(int Iteration = 0; Iteration < 128; Iteration++) {
         if(Distance > Camera.Attributes.z + 1000) break;
         
         vec3 Position = CameraPosition.xyz + Dir * Distance;

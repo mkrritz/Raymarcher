@@ -48,7 +48,12 @@ void RenderQuadToScreen(const Shader* const [],
                         const GLuint);
 // UI
 
-#define EVENT_CHANGE_SAMPLER 0b100
+const uint32_t EVENT_CHANGE_SAMPLER = 1 << 0;
+const uint32_t EVENT_CHANGE_VOLUME_SAMPLER = 1 << 1;
+
+static uint32_t events = 0;
+static uint32_t using_sampler= 0;
+static uint32_t using_volume_sampler = 0;
 
 static void Render(const Shader* const shaders[],
                    const Camera* const camera,
@@ -56,18 +61,28 @@ static void Render(const Shader* const shaders[],
                    GLuint scene_handle,
                    float TotalTime,
                    GLuint map,
-                   GLuint volume,
-                   uint32_t using_sampler) {
+                   GLuint volume) {
     const Shader* shader = shaders[static_cast<uint32_t>(Shaders::Raymarch)];
     
-    switch(using_sampler) {                                        // This is fine...
-        case 0: {                                                  // This is fine...
-            glBindSampler(4, camera->sampler_clamp_linear);        // This is fine...
-            break;                                                 // This is fine...
-        }                                                          // This is fine...
-        case 1: {                                                  // This is fine...
-            glBindSampler(4, camera->sampler_clamp_nearest);       // This is fine...
-            break;                                                 // This is fine...
+    switch(using_sampler) {
+        case 0: {
+            glBindSampler(4, camera->sampler_clamp_linear);
+            break;
+        }
+        case 1: {
+            glBindSampler(4, camera->sampler_clamp_nearest);
+            break;
+        }
+    }
+    
+    switch(using_volume_sampler) {
+        case 0: {
+            glBindSampler(5, camera->sampler_clamp_linear);
+            break;
+        }
+        case 1: {
+            glBindSampler(5, camera->sampler_clamp_nearest);
+            break;
         }
     }
     
@@ -77,16 +92,16 @@ static void Render(const Shader* const shaders[],
     glBindBufferBase(GL_UNIFORM_BUFFER, 2, scene_handle);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, camera->position_buffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, camera->inverse_view_buffer);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, volume);
     glBindTextureUnit(4, map);
+    glBindTextureUnit(5, volume);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindTextureUnit(4, 0);
+    glBindTextureUnit(5, 0);
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
     glBindBufferBase(GL_UNIFORM_BUFFER, 1, 0);
     glBindBufferBase(GL_UNIFORM_BUFFER, 2, 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, 0);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, 0);
 }
 
 static void HandleInput(Input* const input,
@@ -144,12 +159,21 @@ static void HandleInput(Input* const input,
     
     *camera->position = position;
     *camera->forward  = forward;
+    
+    if (input->letters & InputM::P) {
+        if (input->toggles & InputM::Toggle_P) {
+            events |= EVENT_CHANGE_SAMPLER;
+        }
+        input->toggles &= ~InputM::Toggle_P;
+    } else input->toggles |= InputM::Toggle_P;
+    
+    if (input->letters & InputM::O) {
+        if (input->toggles & InputM::Toggle_O) {
+            events |= EVENT_CHANGE_VOLUME_SAMPLER;
+        }
+        input->toggles &= ~InputM::Toggle_O;
+    } else input->toggles |= InputM::Toggle_O;
 }
-
-struct UniformBufferObjectScene {
-    glm::vec4 Timers;
-    // Sun position and whatnot
-};
 
 int main() {
     GLFWwindow* window;
@@ -171,9 +195,12 @@ int main() {
     
     Quad& quad = ui->quads[static_cast<uint32_t>(Quads::SCREEN)];
     
+    struct UniformBufferObjectScene {
+        glm::vec4 Timers;
+        // Sun position and whatnot
+    };
     GLuint scene_handle;
     UniformBufferObjectScene* scene;
-    
     glCreateBuffers(1, &scene_handle);
     glNamedBufferStorage(scene_handle,
                          sizeof(UniformBufferObjectScene),
@@ -184,8 +211,6 @@ int main() {
             0,
             sizeof(UniformBufferObjectScene),
             GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
-    
-    glBindVertexArray(ui->vao); // There is only quad rendering happening.
     
     GLuint map;
     {
@@ -212,20 +237,23 @@ int main() {
     {
         const int VOLUME_SIZE = 256;
         const int TOTAL_VOXELS = VOLUME_SIZE * VOLUME_SIZE * VOLUME_SIZE;
-        // 64MB for 32-bit float SDF values
-        const int FLOAT_COUNT = TOTAL_VOXELS;
-        
-        float* volumeData = new float[FLOAT_COUNT];
+        float* volumeData = new float[TOTAL_VOXELS];
         srand(42);
-        for (int i = 0; i < FLOAT_COUNT; i++) {
-            // Store random distance in range [0, 200]
-            volumeData[i] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 1.0f;
+        const float DENSITY_THRESHOLD = 0.2f; // 0.1 = 10% solid, 0.9 = 90% solid
+        for (int i = 0; i < TOTAL_VOXELS; i++) {
+            // Generate 0 to 1, then subtract threshold
+            // Results in [-DENSITY_THRESHOLD, 1.0 - DENSITY_THRESHOLD]
+            float noise = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+            volumeData[i] = noise - DENSITY_THRESHOLD;
         }
         
-        glCreateBuffers(1, &volume);
-        glNamedBufferStorage(volume, FLOAT_COUNT * sizeof(float), volumeData, 0);
+        glCreateTextures(GL_TEXTURE_3D, 1, &volume);
+        glTextureStorage3D(volume, 1, GL_R32F, VOLUME_SIZE, VOLUME_SIZE, VOLUME_SIZE);
+        glTextureSubImage3D(volume, 0, 0, 0, 0, VOLUME_SIZE, VOLUME_SIZE, VOLUME_SIZE, GL_RED, GL_FLOAT, volumeData);
         delete[] volumeData;
     }
+    
+    glBindVertexArray(ui->vao); // There is only quad rendering happening.
     
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
@@ -243,9 +271,6 @@ int main() {
     AccumulatorTime = dt;
     uint32_t UpdateCount= 0;
     uint32_t FixedUpdateCount= 0;
-    
-    uint32_t events = 0;
-    uint32_t using_sampler = 0;
     
     while (!(input->special & InputM::ESC)) {
         CurrectTime = glfwGetTime();
@@ -274,17 +299,14 @@ int main() {
             
             HandleInput(input, camera, dt);
             
-            if (input->letters & InputM::P) {
-                if (input->toggles & InputM::Toggle_P) {
-                    events |= EVENT_CHANGE_SAMPLER;
-                }
-                input->toggles &= ~InputM::Toggle_P;
-            } else input->toggles |= InputM::Toggle_P;
-            
             if (events) {
                 if (events & EVENT_CHANGE_SAMPLER) {
                     events &= ~EVENT_CHANGE_SAMPLER;
                     using_sampler = 1 - using_sampler;
+                }
+                if (events & EVENT_CHANGE_VOLUME_SAMPLER) {
+                    events &= ~EVENT_CHANGE_VOLUME_SAMPLER;
+                    using_volume_sampler = 1 - using_volume_sampler;
                 }
             }
             
@@ -297,7 +319,7 @@ int main() {
         glClearColor(1, 0, 0, 0); // Red
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        Render(shaders, camera, ui, scene_handle, TotalTime, map, volume, using_sampler);
+        Render(shaders, camera, ui, scene_handle, TotalTime, map, volume);
         
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
         glClearColor(0, 0, 1, 0); // Blue
