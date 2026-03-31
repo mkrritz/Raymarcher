@@ -176,6 +176,48 @@ static void HandleInput(Input* const input,
 }
 
 int main() {
+    const int VOLUME_SIZE = 256;
+    const int TOTAL_VOXELS = VOLUME_SIZE * VOLUME_SIZE * VOLUME_SIZE;
+    float* volumeData = new float[TOTAL_VOXELS];
+    srand(42);
+    
+    #if 0 // Random noise volume
+    const float DENSITY_THRESHOLD = 0.2f; // 0.1 = 10% solid, 0.9 = 90% solid
+    for (int i = 0; i < TOTAL_VOXELS; i++) {
+        // Generate 0 to 1, then subtract threshold
+        // Results in [-DENSITY_THRESHOLD, 1.0 - DENSITY_THRESHOLD]
+        float noise = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+        volumeData[i] = noise - DENSITY_THRESHOLD;
+    }
+    #else // Not random noise volume
+    auto sdBox = [](glm::vec3 p, glm::vec3 b) {
+        glm::vec3 q = glm::abs(p) - b;
+        return glm::length(glm::max(q, glm::vec3(0.0f))) + glm::min(glm::max(q.x, glm::max(q.y, q.z)), 0.0f);
+    };
+    const float halfSize = static_cast<float>(VOLUME_SIZE) * 0.5f;
+    const glm::vec3 center(halfSize);
+    for (int z = 0; z < VOLUME_SIZE; z++) {
+        for (int y = 0; y < VOLUME_SIZE; y++) {
+            for (int x = 0; x < VOLUME_SIZE; x++) {
+                glm::vec3 p(x, y, z);
+                float d = sdBox(p - center, glm::vec3(halfSize));
+                float s = 1.0f;
+                for (int m = 0; m < 2; m++) {
+                    glm::vec3 a = glm::mod(p * s, (float)VOLUME_SIZE) - center;
+                    s *= 3.0f;
+                    glm::vec3 r = glm::abs(1.0f - 3.0f * glm::abs(a) / halfSize);
+                    float da = glm::max(r.x, r.y);
+                    float db = glm::max(r.y, r.z);
+                    float dc = glm::max(r.z, r.x);
+                    float c = (glm::min(da, glm::min(db, dc)) - 1.0f) / s * halfSize;
+                    d = glm::max(d, c);
+                }
+                volumeData[x + y * VOLUME_SIZE + z * VOLUME_SIZE * VOLUME_SIZE] = d;
+            }
+        }
+    }
+    #endif
+    
     GLFWwindow* window;
     window = WindowInit();
     
@@ -235,18 +277,6 @@ int main() {
     
     GLuint volume;
     {
-        const int VOLUME_SIZE = 256;
-        const int TOTAL_VOXELS = VOLUME_SIZE * VOLUME_SIZE * VOLUME_SIZE;
-        float* volumeData = new float[TOTAL_VOXELS];
-        srand(42);
-        const float DENSITY_THRESHOLD = 0.2f; // 0.1 = 10% solid, 0.9 = 90% solid
-        for (int i = 0; i < TOTAL_VOXELS; i++) {
-            // Generate 0 to 1, then subtract threshold
-            // Results in [-DENSITY_THRESHOLD, 1.0 - DENSITY_THRESHOLD]
-            float noise = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-            volumeData[i] = noise - DENSITY_THRESHOLD;
-        }
-        
         glCreateTextures(GL_TEXTURE_3D, 1, &volume);
         glTextureStorage3D(volume, 1, GL_R32F, VOLUME_SIZE, VOLUME_SIZE, VOLUME_SIZE);
         glTextureSubImage3D(volume, 0, 0, 0, 0, VOLUME_SIZE, VOLUME_SIZE, VOLUME_SIZE, GL_RED, GL_FLOAT, volumeData);
