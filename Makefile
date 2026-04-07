@@ -102,6 +102,6 @@ release:
 	@echo Copying Shaders...
 	@xcopy /E /I /Y $(SHADER_DIR) $(subst /,\,$(RELEASE_DIR))\$(SHADER_DIR) > nul
 	@echo Copying Map...
-	@xcopy /S /I /Y $(MAP_DIR)\*.ogg $(subst /,\,$(RELEASE_DIR))\$(MAP_DIR)\ > nul
+	@xcopy /S /I /Y $(MAP_DIR)\*.png $(subst /,\,$(RELEASE_DIR))\$(MAP_DIR)\ > nul
 	@powershell -NoProfile -ExecutionPolicy Bypass -File ReleaseDLLs.ps1 \
 				-ReleaseDir "$(subst /,\,$(RELEASE_DIR))" -AppName "$(APP_NAME)"
