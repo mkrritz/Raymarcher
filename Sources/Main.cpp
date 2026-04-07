@@ -67,10 +67,12 @@ static void Render(const Shader* const shaders[],
     switch(using_sampler) {
         case 0: {
             glBindSampler(4, camera->sampler_clamp_linear);
+            //glBindSampler(4, camera->sampler_repeat_linear);
             break;
         }
         case 1: {
             glBindSampler(4, camera->sampler_clamp_nearest);
+            //glBindSampler(4, camera->sampler_repeat_nearest);
             break;
         }
     }
@@ -181,8 +183,8 @@ int main() {
     float* volumeData = new float[TOTAL_VOXELS];
     srand(42);
     
-    #if 0 // Random noise volume
-    const float DENSITY_THRESHOLD = 0.2f; // 0.1 = 10% solid, 0.9 = 90% solid
+    #if 1 // Random noise volume
+    const float DENSITY_THRESHOLD = 0.1f; // 0.1 = 10% solid, 0.9 = 90% solid
     for (int i = 0; i < TOTAL_VOXELS; i++) {
         // Generate 0 to 1, then subtract threshold
         // Results in [-DENSITY_THRESHOLD, 1.0 - DENSITY_THRESHOLD]
@@ -202,7 +204,7 @@ int main() {
                 glm::vec3 p(x, y, z);
                 float d = sdBox(p - center, glm::vec3(halfSize));
                 float s = 1.0f;
-                for (int m = 0; m < 2; m++) {
+                for (int m = 0; m < 3; m++) {
                     glm::vec3 a = glm::mod(p * s, (float)VOLUME_SIZE) - center;
                     s *= 3.0f;
                     glm::vec3 r = glm::abs(1.0f - 3.0f * glm::abs(a) / halfSize);

@@ -2,8 +2,8 @@
 
 #define PI    3.1415925
 #define TWOPI 6.2831850
-#define ONE_CENTIMETER 0.01
 #define TEN_CENTIMETER 0.1
+#define ONE_CENTIMETER 0.01
 
 in vec2 UV; // This useless?
 in vec3 Direction;
@@ -14,20 +14,19 @@ layout(std140, binding = 2) uniform SceneUniformBufferObject {
     TimersUBO Scene;
 };
 
-layout(binding = 4) uniform sampler2D Sampler;
-
 #include "UniformBufferObjects/Camera.glsl"
-layout(std140, binding = 1) uniform CameraUniformBufferObject {       // Figure out naming of camera position and camera stuff
-    CameraUBO Camera;                                                 // Figure out naming of camera position and camera stuff
-};                                                                    // Figure out naming of camera position and camera stuff
-                                                                      // Figure out naming of camera position and camera stuff
-layout(std430, binding = 6) readonly buffer CameraPositionBuffer {    // Figure out naming of camera position and camera stuff
-    vec4 CameraPosition;                                              // Figure out naming of camera position and camera stuff
-};                                                                    // Figure out naming of camera position and camera stuff
+layout(std140, binding = 1) uniform CameraUniformBufferObject {
+    CameraUBO Camera;
+};
+
+layout(std430, binding = 6) readonly buffer CameraPositionBuffer {
+    vec4 CameraPosition;
+};
 
 float Period = 60;
 const float VolumeSize = 256.0;
 const float HalfVolumeSize = VolumeSize * 0.5;
+layout(binding = 4) uniform sampler2D Sampler;
 layout(binding = 5) uniform sampler3D VolumeSampler;
 
 struct Surface {
@@ -49,7 +48,7 @@ vec2 WorldToUV(vec2 Position) {
 
 float SampleMap(vec2 Position) {
     vec2 uv = WorldToUV(Position);
-    return texture(Sampler, uv).r * 20.0; // Fix this!
+    return texture(Sampler, uv).r * 20.0; // Fix this
 }
 
 float SampleVolume(vec3 pos) {
@@ -75,7 +74,7 @@ float GetSceneSDF(vec3 Position) {
     
     float Sphere  = SphereSDF(Position, GetSunPosition());
     
-    // SIERPINSKI CARPET (Sampled from Volume)
+    // Sampled from Volume
     vec3 RegionOffset = vec3(300.0, 10.0, 0.0);
     vec3 LocalPosition = Position - RegionOffset;
     float VolumeDist = SampleVolume(LocalPosition);
