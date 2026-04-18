@@ -24,7 +24,7 @@ layout(std430, binding = 6) readonly buffer CameraPositionBuffer {
 };
 
 
-const vec3 RegionOffset = vec3(142.0, 0.0, 142.0); // Places tree center at 150, 0, 150
+const vec3 RegionOffset = vec3(35.0, 0.0, 120.0);
 layout(binding = 4) uniform sampler2D Sampler;
 layout(binding = 5) uniform sampler3D VolumeSampler;
 
@@ -47,7 +47,7 @@ vec2 WorldToUV(vec2 Position) {
 
 float SampleMap(vec2 Position) {
     vec2 uv = WorldToUV(Position);
-    return texture(Sampler, uv).r * 20.0; // Fix this
+    return texture(Sampler, uv).r * 30.0; // Fix this
 }
 
 float SampleVolume(vec3 pos) {
@@ -68,11 +68,17 @@ float SphereSDF(vec3 Position, vec3 Center) {
     return length(Position - Center) - 10;
 }
 
+float sdBoxFrame(vec3 p, vec3 b, float e) {
+    p = abs(p) - b;
+    vec3 q = abs(p + e) - e;
+    return min(min(
+        length(max(vec3(p.x, q.y, q.z), 0.0)) + min(max(p.x, max(q.y, q.z)), 0.0),
+        length(max(vec3(q.x, p.y, q.z), 0.0)) + min(max(q.x, max(p.y, q.z)), 0.0)),
+        length(max(vec3(q.x, q.y, p.z), 0.0)) + min(max(q.x, max(q.y, p.z)), 0.0));
+}
+
 float GetSceneSDF(vec3 Position) {
-    // Multiply by a relaxation factor (e.g. 0.5) because vertical distance overestimates 
-    // Euclidean distance on slopes. This prevents the ray from taking massive steps at grazing 
-    // angles, which was causing the circular banding artifacts!
-    float Terrain = (Position.y - SampleMap(Position.xz)) * 1.0;
+    float Terrain = (Position.y - SampleMap(Position.xz));
     
     float Sphere  = SphereSDF(Position, GetSunPosition());
     
@@ -83,7 +89,9 @@ float GetSceneSDF(vec3 Position) {
     float BoxDist = length(max(d, 0.0)) + min(max(d.x, max(d.y, d.z)), 0.0);
     float BoundedVolume = max(BoxDist, VolumeDist);
     
-    return min(min(Terrain, Sphere), BoundedVolume);
+    float BoundsShell = sdBoxFrame(LocalPosition - vec3(8.0, 64.0, 8.0), vec3(8.0, 64.0, 8.0), 0.2);
+    
+    return min(min(min(Terrain, Sphere), BoundedVolume), BoundsShell);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -135,7 +143,13 @@ void main() {
     March(surface);
     
     if(surface.hit) {
-        surface.Normal = SceneNormal(surface.Position);
+        vec3 Dir = normalize(Direction);
+        
+        // Use the smooth normal as a stable guide for the blocky face selection.
+        // This prevents the flickering noise caused by floating-point jitter at voxel boundaries.
+        vec3 smoothNormal = SceneNormal(surface.Position);
+        surface.Normal = vec3(0.0, 0.0, sign(smoothNormal.y));
+        
         vec3 baseColor = SceneMaterial(surface.Position);
         
         vec3 Sun = normalize(GetSunPosition());
@@ -170,6 +184,12 @@ vec3 SceneMaterial(vec3 Position) {
     vec3 d = abs(LocalPosition - vec3(8.0, 64.0, 8.0)) - vec3(8.0, 64.0, 8.0);
     float BoxDist = length(max(d, 0.0)) + min(max(d.x, max(d.y, d.z)), 0.0);
     float BoundedVolume = max(BoxDist, VolumeDist);
+    
+    float BoundsShell = sdBoxFrame(LocalPosition - vec3(8.0, 64.0, 8.0), vec3(8.0, 64.0, 8.0), 0.2);
+    
+    if(BoundsShell < Terrain && BoundsShell < Sphere && BoundsShell < BoundedVolume) {
+        return vec3(1.0, 0.0, 0.0);
+    }
     
     if(BoundedVolume < Terrain && BoundedVolume < Sphere) {
         return mix(vec3(0.4, 0.25, 0.1), vec3(0.1, 0.5, 0.2), clamp((Position.y - 60.0) / 40.0, 0.0, 1.0));
