@@ -28,8 +28,8 @@ void main() {
     const float TanHalfFOV = Camera.Attributes.y;
     
     vec2 NDC = (UV * 2.0 - 1.0);
-    vec3 ViewSpaceDirection = normalize(vec3(NDC.x * TanHalfFOV * Aspect,
-                                             NDC.y * TanHalfFOV,
-                                             -1.0));
+    vec3 ViewSpaceDirection = vec3(NDC.x * TanHalfFOV * Aspect,
+                                   NDC.y * TanHalfFOV,
+                                   -1.0);
     Direction = mat3(InverseView) * ViewSpaceDirection;
 }

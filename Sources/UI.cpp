@@ -11,13 +11,15 @@
 void RenderQuadToScreen(const Shader* const shaders[],
                         const Camera* const camera,
                         const UI* const ui,
-                        const GLuint texture) {
+                        const GLuint texture,
+                        const GLuint scene_handle) {
     const Shader* shader = shaders[static_cast<uint32_t>(Shaders::DrawTexture)];
     
     glBindSampler(0, camera->sampler_clamp_linear);
     
     glUseProgram(shader->ID);
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, ui->ubo_handle[static_cast<uint32_t>(Quads::SCREEN)]);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 2, scene_handle);
     glBindTextureUnit(0, texture);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindTextureUnit(0, 0);
