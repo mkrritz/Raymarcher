@@ -18,8 +18,8 @@ void RenderQuadToScreen(const Shader* const shaders[],
     glBindSampler(0, camera->sampler_clamp_linear);
     
     glUseProgram(shader->ID);
-    glBindBufferBase(GL_UNIFORM_BUFFER, 0, ui->ubo_handle[static_cast<uint32_t>(Quads::SCREEN)]);
-    glBindBufferBase(GL_UNIFORM_BUFFER, 2, scene_handle);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 2, ui->ubo_handle[static_cast<uint32_t>(Quads::SCREEN)]);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, scene_handle);
     glBindTextureUnit(0, texture);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindTextureUnit(0, 0);
@@ -28,8 +28,6 @@ void RenderQuadToScreen(const Shader* const shaders[],
 
 void UIInit(Heap* const heap) {
     UI* ui = (UI*)HeapAllocate(heap, sizeof(UI));
-    
-    glGenVertexArrays(1, &ui->vao);
     
     {
         Quad& quad = ui->quads[static_cast<uint32_t>(Quads::SCREEN)];

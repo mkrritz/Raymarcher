@@ -17,4 +17,6 @@
 #include <fstream>
 #include <sys/stat.h>
 
+extern GLuint empty_vao; // For invoking shaders with attributeless vertices.
+
 #endif

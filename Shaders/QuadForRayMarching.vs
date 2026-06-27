@@ -4,14 +4,8 @@ out vec2 UV;
 out vec3 Direction;
 
 #include "UniformBufferObjects/UI.glsl"
-layout(std140, binding = 0) uniform UIUniformBufferObject {
-    UIUBO UI;
-};
 
 #include "UniformBufferObjects/Camera.glsl"
-layout(std140, binding = 1) uniform CameraUniformBufferObject {
-    CameraUBO Camera;
-};
 
 layout(std430, binding = 7) readonly buffer CameraInverseView {
     mat4 InverseView;
@@ -20,12 +14,10 @@ layout(std430, binding = 7) readonly buffer CameraInverseView {
 void main() {
     UV = vec2((gl_VertexID >> 1) & 1, (gl_VertexID) & 1);
     
-    gl_Position = vec4(UI.Rect.x + UV.x * UI.Rect.z,
-                       UI.Rect.y + UV.y * UI.Rect.w,
+    gl_Position = vec4(NDCX + UV.x * NDCW,
+                       NDCY + UV.y * NDCH,
                        0.0, 1.0);
     
-    const float Aspect     = Camera.Attributes.x;
-    const float TanHalfFOV = Camera.Attributes.y;
     
     vec2 NDC = (UV * 2.0 - 1.0);
     vec3 ViewSpaceDirection = vec3(NDC.x * TanHalfFOV * Aspect,

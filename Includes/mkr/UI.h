@@ -17,7 +17,6 @@ struct Quad {
 };
 
 struct UI {
-    GLuint vao, vbo, ibo;
     Quad quads[static_cast<uint32_t>(Quads::Count)];
     GLuint ubo_handle[static_cast<uint32_t>(Quads::Count)];
 };

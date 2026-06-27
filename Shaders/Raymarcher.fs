@@ -10,14 +10,8 @@ in vec3 Direction;
 out vec4 FragColor;
 
 #include "UniformBufferObjects/Timers.glsl"
-layout(std140, binding = 2) uniform SceneUniformBufferObject {
-    TimersUBO Scene;
-};
 
 #include "UniformBufferObjects/Camera.glsl"
-layout(std140, binding = 1) uniform CameraUniformBufferObject {
-    CameraUBO Camera;
-};
 
 layout(std430, binding = 6) readonly buffer CameraPositionBuffer {
     vec4 CameraPosition;
@@ -59,9 +53,9 @@ float SampleVolume(vec3 pos) {
 
 vec3 GetSunPosition() {
     return vec3(150,200,150) +
-           vec3(100.0*cos(TWOPI / 60.0 * Scene.Timers.x),
-                150.0*cos(TWOPI / 60.0 * Scene.Timers.x),
-                100.0*sin(TWOPI / 60.0 * Scene.Timers.x));
+           vec3(100.0*cos(TWOPI / 60.0 * Timer),
+                150.0*cos(TWOPI / 60.0 * Timer),
+                100.0*sin(TWOPI / 60.0 * Timer));
 }
 
 float SphereSDF(vec3 Position, vec3 Center) {
@@ -108,7 +102,7 @@ void March(out Surface surface) {
     const int MAX_ITERATIONS = 32;
 
     for(int Iteration = 0; Iteration < MAX_ITERATIONS; Iteration++) {
-        if(Distance > Camera.Attributes.z + 1000.0) break;
+        if(Distance > FarPlane + 1000.0) break;
         
         vec3 Position = CameraPosition.xyz + Dir * Distance;
         
@@ -156,7 +150,7 @@ void main() {
         float diffuse = max(4*dot(surface.Normal, Sun), 0.25);
         Color = baseColor * diffuse;
     } else {
-        float x = (sin(Scene.Timers.x) + 1.0) * 0.5;
+        float x = (sin(Timer) + 1.0) * 5.5;
         Color = mix(vec3(x,0.5,0.2), vec3(0.6-0.3*x,0.3-0.2*x,0.5), UV.y);
     }
     
@@ -213,8 +207,8 @@ vec3 TerrainMaterial(vec3 Position) {
     vec3 ice  = vec3(0.9,0.9,0.9);
     
     vec3 base;
-    if(h < 3.0 + 0.1 * cos(Scene.Timers.x)) base = dirt;
-    else if(h < 6.0 + 0.1 * cos(Scene.Timers.x + PI)) base = water;
+    if(h < 3.0 + 0.1 * cos(Timer)) base = dirt;
+    else if(h < 6.0 + 0.1 * cos(Timer + PI)) base = water;
     else if(h < 12.0) base = dirt;
     else if(h < 14.0) base = grass;
     else if(h < 16.0) base = rock;

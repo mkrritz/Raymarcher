@@ -90,9 +90,9 @@ static void Render(const Shader* const shaders[],
     }
     
     glUseProgram(shader->ID);
-    glBindBufferBase(GL_UNIFORM_BUFFER, 0, ui->ubo_handle[static_cast<uint32_t>(Quads::RAYMARCH)]);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 2, ui->ubo_handle[static_cast<uint32_t>(Quads::RAYMARCH)]);
     glBindBufferBase(GL_UNIFORM_BUFFER, 1, camera->ubo_handle);
-    glBindBufferBase(GL_UNIFORM_BUFFER, 2, scene_handle);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, scene_handle);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, camera->position_buffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, camera->inverse_view_buffer);
     glBindTextureUnit(4, map);
@@ -288,6 +288,8 @@ static float TreeSDF(glm::vec3 p) {
     return d;
 }
 
+GLuint empty_vao;
+
 int main() {
     const int VOL_X = 128;
     const int VOL_Y = 1024;
@@ -403,7 +405,8 @@ int main() {
         delete[] volumeData;
     }
     
-    glBindVertexArray(ui->vao); // There is only quad rendering happening.
+    glGenVertexArrays(1, &empty_vao);
+    glBindVertexArray(empty_vao);
     
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
