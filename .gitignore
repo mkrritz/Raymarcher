@@ -1,7 +1,7 @@
-Binaries/Raymarcher.exe
-Objects
-Assemblies
-Release
+Binaries/
+Objects/
+Assemblies/
+Release/
 Includes/pch.h.gch
 
 tree_volume.bin

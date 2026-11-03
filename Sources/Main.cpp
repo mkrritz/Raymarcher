@@ -178,13 +178,6 @@ static void HandleInput(Input* const input,
     } else input->toggles |= InputM::Toggle_O;
 }
 
-// Tree SDF C++ Implementation
-static float sdCapsule(glm::vec3 p, glm::vec3 a, glm::vec3 b, float r) {
-    glm::vec3 pa = p - a, ba = b - a;
-    float h = glm::clamp(glm::dot(pa, ba) / glm::dot(ba, ba), 0.0f, 1.0f);
-    return glm::length(pa - ba * h) - r;
-}
-
 static float sdBranch(glm::vec3 p, glm::vec3 a, glm::vec3 b, float r1, float r2) {
     glm::vec3 pa = p - a, ba = b - a;
     float h = glm::clamp(glm::dot(pa, ba) / glm::dot(ba, ba), 0.0f, 1.0f);
@@ -198,88 +191,66 @@ static glm::mat2 rot(float a) {
 }
 
 static float TreeSDF(glm::vec3 p) {
-    // Redwood Trunk (base is at y=0, top at y=100)
-    // Scale diameter down as it reaches max height (4.0 at base to 0.2 at top)
     float d = sdBranch(p, glm::vec3(0.0f), glm::vec3(0.0f, 100.0f, 0.0f), 4.0f, 0.2f);
     
-    // Canopy Clusters via 1D domain repetition
-    float spacing = 3.0f; // A cluster every 3 meters
+    float spacing = 3.0f;
     float base_id = glm::floor(p.y / spacing);
     
-    // Evaluate current cell and neighbors to prevent clipping when branches cross cell boundaries
     for (int offset = -2; offset <= 1; offset++) {
         float cid = base_id + (float)offset;
         
-        // Redwood branches are mainly at the top (y=60 to y=96)
         if(cid < 20.0f || cid > 32.0f) continue; 
         
         glm::vec3 bp = p - glm::vec3(0.0f, cid * spacing, 0.0f);
         
-        // Spiral main branches around the trunk using golden angle
         glm::vec2 xz = rot(cid * 2.3999f) * glm::vec2(bp.x, bp.z);
         bp.x = xz.x; bp.z = xz.y;
         
-        // Start from trunk surface
         float trunk_rad_at_y = glm::mix(4.0f, 0.2f, glm::clamp((cid * spacing) / 100.0f, 0.0f, 1.0f));
         bp.x -= trunk_rad_at_y;
         
-        // Main branch droops downwards slightly
         glm::vec2 xy = rot(-0.1f) * glm::vec2(bp.x, bp.y);
         bp.x = xy.x; bp.y = xy.y;
         
-        // Conical tree shape: longer branches at bottom of canopy
         float shape = 1.0f - (cid - 20.0f) / 13.0f; 
         shape = glm::clamp(shape, 0.3f, 1.0f);
         
-        // Scale branch lengths to ensure they fit perfectly inside the 8.0m volume bounding radius
-        // The max branch horizontal reach is ~2.35 * len. Max trunk radius is 4.0m. 
-        // 2.5m * 2.35 = 5.87m + trunk_rad = ~7.5m (safely under 8.0m limit).
         float len = 2.5f * shape;
         
-        // First level branches start exactly at a diameter of 1 (radius = 0.5)
         float rad = 0.5f;
         
         glm::vec3 fp = bp;
-        float branch_id = cid; // Base ID for the cluster
+        float branch_id = cid;
         
-        // FRACTAL SUB-BRANCHES (Infinite detail)
         for(int j = 0; j < 4; j++) {
             float next_rad = rad * 0.6f;
             
-            // Generate a unique pseudo-random hash for this specific branch quadrant
             float hash = glm::fract(sin(glm::mod(branch_id, 1000.0f) * 135.233f) * 43758.5453f);
             
-            // Random Pruning: 30% chance to skip drawing this branch.
             if(j > 0 && hash <= 0.3f) {
                 break; 
             }
             
             d = glm::min(d, sdBranch(fp, glm::vec3(0.0f), glm::vec3(len, 0.0f, 0.0f), rad, next_rad));
             
-            // Move to branch tip
             fp.x -= len;
             
-            // Track which quadrant we are in BEFORE folding space.
             float qy = (fp.y >= 0.0f) ? 1.0f : 0.0f;
             float qz = (fp.z >= 0.0f) ? 1.0f : 0.0f;
             branch_id = branch_id * 4.0f + qy + qz * 2.0f;
             
-            // Fold space in Y and Z to spawn 4 sub-branches per branch
             fp.y = glm::abs(fp.y);
             fp.z = glm::abs(fp.z);
             
-            // Wiggle angles slightly based on the parent's hash
             float wiggle_y = (glm::fract(hash * 34.5f) - 0.5f) * 0.15f;
             float wiggle_z = (glm::fract(hash * 78.9f) - 0.5f) * 0.15f;
             
-            // Bend the sub-branches outwards
             glm::vec2 fpxy = rot(0.4f + wiggle_y) * glm::vec2(fp.x, fp.y);
             fp.x = fpxy.x; fp.y = fpxy.y;
             
             glm::vec2 fpxz = rot(0.5f + wiggle_z) * glm::vec2(fp.x, fp.z);
             fp.x = fpxz.x; fp.z = fpxz.y;
             
-            // Scale down for the next generation
             len *= 0.65f;
             rad = next_rad;
         }
@@ -291,13 +262,24 @@ static float TreeSDF(glm::vec3 p) {
 GLuint empty_vao;
 
 int main() {
+    wchar_t exe_path[MAX_PATH];
+    GetModuleFileNameW(NULL, exe_path, MAX_PATH);
+    
+    std::filesystem::path exe_dir = std::filesystem::path(exe_path).parent_path();
+    if (std::filesystem::exists(exe_dir / "Shaders")) {
+        std::filesystem::current_path(exe_dir);
+    } else if (std::filesystem::exists(exe_dir.parent_path() / "Shaders")) {
+        std::filesystem::current_path(exe_dir.parent_path());
+    }
+    std::filesystem::path cache_file = exe_dir / "tree_volume_128.bin";
+    
     const int VOL_X = 128;
     const int VOL_Y = 1024;
     const int VOL_Z = 128;
     const size_t TOTAL_VOXELS = (size_t)VOL_X * VOL_Y * VOL_Z;
     float* volumeData = new float[TOTAL_VOXELS];
     
-    FILE* f = fopen("tree_volume_128.bin", "rb");
+    FILE* f = fopen(cache_file.string().c_str(), "rb");
     if(f) {
         printf("Loading tree volume from tree_volume_128.bin... (64MB)\n");
         fread(volumeData, sizeof(float), TOTAL_VOXELS, f);
@@ -305,34 +287,25 @@ int main() {
     } else {
         printf("Generating tree volume (this may take 5-15 seconds)...\n");
         
-        // To speed up generation, pre-calculate bounding cylinders
         for (int z = 0; z < VOL_Z; z++) {
             for (int y = 0; y < VOL_Y; y++) {
                 for (int x = 0; x < VOL_X; x++) {
-                    // 8 voxels = 1 meter. 
-                    // Volume dimensions: 16m x 128m x 16m.
-                    // Center of XZ is 8m, 8m. Base of Y is 0m.
                     glm::vec3 p_meters(x / 8.0f, y / 8.0f, z / 8.0f);
                     glm::vec3 p_tree = p_meters - glm::vec3(8.0f, 0.0f, 8.0f);
-                    
-                    // Bounding optimization: if we are far from the tree, return a rough distance.
-                    // The Redwood branches don't reach beyond 8 meters horizontally.
                     float dist_to_center = glm::length(glm::vec2(p_tree.x, p_tree.z));
                     float d;
                     if(dist_to_center > 14.0f || p_tree.y < -5.0f || p_tree.y > 110.0f) {
-                        // Very rough bounding cylinder
                         d = glm::max(dist_to_center - 12.0f, glm::abs(p_tree.y - 50.0f) - 60.0f);
                     } else {
                         d = TreeSDF(p_tree);
                     }
-                    
                     size_t index = (size_t)x + (size_t)y * VOL_X + (size_t)z * VOL_X * VOL_Y;
                     volumeData[index] = d;
                 }
             }
         }
         
-        f = fopen("tree_volume_128.bin", "wb");
+        f = fopen(cache_file.string().c_str(), "wb");
         if(f) {
             printf("Saving tree volume to tree_volume_128.bin...\n");
             fwrite(volumeData, sizeof(float), TOTAL_VOXELS, f);
@@ -469,13 +442,13 @@ int main() {
         }
         
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, quad.framebuffer);
-        glClearColor(1, 0, 0, 0); // Red
+        glClearColor(1, 0, 0, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         Render(shaders, camera, ui, scene_handle, TotalTime, map, volume);
         
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-        glClearColor(0, 0, 1, 0); // Blue
+        glClearColor(0, 0, 1, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         RenderQuadToScreen(shaders, camera, ui, quad.texture, scene_handle);

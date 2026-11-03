@@ -76,7 +76,6 @@ float GetSceneSDF(vec3 Position) {
     
     float Sphere  = SphereSDF(Position, GetSunPosition());
     
-    // Sampled from Volume
     vec3 LocalPosition = Position - RegionOffset;
     float VolumeDist = SampleVolume(LocalPosition);
     vec3 d = abs(LocalPosition - vec3(8.0, 64.0, 8.0)) - vec3(8.0, 64.0, 8.0);
@@ -139,8 +138,6 @@ void main() {
     if(surface.hit) {
         vec3 Dir = normalize(Direction);
         
-        // Use the smooth normal as a stable guide for the blocky face selection.
-        // This prevents the flickering noise caused by floating-point jitter at voxel boundaries.
         vec3 smoothNormal = SceneNormal(surface.Position);
         surface.Normal = vec3(0.0, 0.0, sign(smoothNormal.y));
         
