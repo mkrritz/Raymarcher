@@ -17,16 +17,33 @@ RELEASE_DIR  := Release
 TARGET       := $(BINARY_DIR)/$(APP_NAME)
 PCH          := $(INCLUDE_DIR)/pch.h
 
+TOOLCHAIN    := $(abspath $(dir $(firstword $(shell where.exe $(COMPILER) 2>nul)))/..)
+FOCUS_PREFIX ?= $(TOOLCHAIN)
+FOCUS_LIB    := $(abspath $(FOCUS_PREFIX)/lib/libFocus.a)
+
+# If the compiler prefix guess is wrong, ask the compiler where it keeps libraries.
+ifeq ($(wildcard $(FOCUS_LIB)),)
+FOCUS_FROM_COMPILER := $(shell $(COMPILER) -print-file-name=libFocus.a)
+ifneq ($(findstring /,$(FOCUS_FROM_COMPILER)),)
+FOCUS_LIB := $(abspath $(firstword $(wildcard $(FOCUS_FROM_COMPILER))))
+endif
+endif
+
+# Keep the expected path even when missing, so the build reports a useful error.
+ifeq ($(FOCUS_LIB),)
+FOCUS_LIB := $(abspath $(FOCUS_PREFIX)/lib/libFocus.a)
+endif
+
 PKGS     := glfw3 glew
 CXXFLAGS := -O0 -Wall -std=c++17 \
             $(shell pkg-config --static --cflags $(PKGS)) -I$(INCLUDE_DIR)
-LDFLAGS  := -static-libgcc -static-libstdc++ -Wl,-Bstatic \
+LDLIBS   := -Wl,-Bstatic "$(FOCUS_LIB)" \
             $(shell pkg-config --static --libs $(PKGS)) -lwinpthread \
             -Wl,-Bdynamic -lopengl32 -lgdi32
+LDFLAGS  := -static-libgcc -static-libstdc++
 
 SOURCES = \
 	Camera.cpp \
-	Globals.cpp \
 	Input.cpp \
 	Main.cpp \
 	Memory.cpp \
@@ -61,9 +78,13 @@ $(OBJECT_DIR) $(ASSEMBLY_DIR) $(BINARY_DIR):
 ##############################################################
 
 ##############################################################
-$(TARGET): $(PCH).gch $(OBJECTS) | $(BINARY_DIR)
+$(FOCUS_LIB):
+	@if not exist "$(subst /,\,$(FOCUS_LIB))" (echo Focus library not found: $(FOCUS_LIB) & echo Build and install C:/Focus first: & echo   cd C:/Focus & echo   mingw32-make & echo   mingw32-make install & exit /b 1)
+
+##############################################################
+$(TARGET): $(PCH).gch $(OBJECTS) $(FOCUS_LIB) | $(BINARY_DIR)
 	@echo Linking...
-	@$(COMPILER) $(OBJECTS) -o $@ $(LDFLAGS)
+	@$(COMPILER) $(OBJECTS) -o $@ $(LDFLAGS) $(LDLIBS)
 
 $(PCH).gch: $(PCH)
 	@echo Generating precompiled header...

@@ -5,7 +5,6 @@
 #include "mkr/Assert.h"
 #include "mkr/Input.h"
 #include "mkr/Shader.h"
-#include "mkr/Globals.h"
 #include "mkr/Camera.h"
 #include "mkr/Memory.h"
 #include "mkr/UI.h"
@@ -22,7 +21,7 @@ void HeapsInit(Heap*[]);
 
 // Camera
 void CameraInit(Heap* const);
-void UpdateCamera(const Shader* const [],
+void UpdateCamera(const ShaderLibrary* const,
                   Camera* const,
                   GLuint,
                   float,
@@ -30,10 +29,9 @@ void UpdateCamera(const Shader* const [],
 // Camera
 
 // Shader
-void ShadersInit(Heap* const,
-                 Shader*[], bool);
-void ReloadShader(Heap* const,
-                  uint32_t);
+static void ShaderLogWrite(void*, const char* text) {
+    printf("%s\n", text);
+}
 // Shader
 
 // Input
@@ -42,7 +40,7 @@ Input* NextRecordedInputState();
 
 // UI
 void UIInit(Heap* const);
-void RenderQuadToScreen(const Shader* const [],
+void RenderQuadToScreen(const ShaderLibrary* const,
                         const Camera* const,
                         const UI* const,
                         const GLuint,
@@ -56,15 +54,13 @@ static uint32_t events = 0;
 static uint32_t using_sampler= 0;
 static uint32_t using_volume_sampler = 0;
 
-static void Render(const Shader* const shaders[],
+static void Render(const ShaderLibrary* const shaders,
                    const Camera* const camera,
                    const UI* const ui,
                    GLuint scene_handle,
                    float TotalTime,
                    GLuint map,
                    GLuint volume) {
-    const Shader* shader = shaders[static_cast<uint32_t>(Shaders::Raymarch)];
-    
     switch(using_sampler) {
         case 0: {
             glBindSampler(4, camera->sampler_clamp_linear);
@@ -89,7 +85,7 @@ static void Render(const Shader* const shaders[],
         }
     }
     
-    glUseProgram(shader->ID);
+    glUseProgram(ShaderLibraryProgram(shaders, (size_t)Shaders::Raymarch));
     glBindBufferBase(GL_UNIFORM_BUFFER, 2, ui->ubo_handle[static_cast<uint32_t>(Quads::RAYMARCH)]);
     glBindBufferBase(GL_UNIFORM_BUFFER, 1, camera->ubo_handle);
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, scene_handle);
@@ -321,8 +317,13 @@ int main() {
     Heap* heaps[static_cast<uint32_t>(Heaps::Count)] = {nullptr};
     HeapsInit(heaps);
     
-    Shader* shaders[static_cast<uint32_t>(Shaders::Count)] = {nullptr};
-    ShadersInit(heaps[static_cast<uint32_t>(Heaps::Shader)], shaders, true);
+    ShaderLog shaderLog = { ShaderLogWrite, nullptr };
+    ShaderLibrary* shaders = ShaderLibraryOpen("Shaders/",
+                                               FocusShaderPrograms,
+                                               FocusShaderProgramCount,
+                                               &shaderLog,
+                                               1);
+    ASSERT(shaders == nullptr, "Shader library failed to open.");
     
     CameraInit(heaps[static_cast<uint32_t>(Heaps::Camera)]);
     Camera* const camera = (Camera*)heaps[static_cast<uint32_t>(Heaps::Camera)]->memory;
@@ -411,11 +412,7 @@ int main() {
         UpdateCount += 1;
         glfwPollEvents();
         
-        while (shader_slots_to_reload) {
-            uint32_t slot = __builtin_ctzll(shader_slots_to_reload);
-            shader_slots_to_reload &= ~(1ULL << slot);
-            ReloadShader(heaps[static_cast<uint32_t>(Heaps::Shader)], slot);
-        }
+        ShaderLibraryReloadChanged(shaders);
         
         while(AccumulatorTime >= dt) {
             AccumulatorTime -= dt;
@@ -456,6 +453,10 @@ int main() {
         glfwSwapBuffers(window);
     }
     
+    ShaderLibraryClose(shaders);
+    glfwDestroyWindow(window);
+    glfwTerminate();
+
     return 1;
 }
 

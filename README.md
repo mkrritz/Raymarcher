@@ -11,6 +11,7 @@ A minimal OpenGL fragment shader raymarcher.
 - `mingw-w64-ucrt-x86_64-glfw`
 - `mingw-w64-ucrt-x86_64-glew`
 - `mingw-w64-ucrt-x86_64-glm`
+- [Focus](../Focus) (local sibling repository)
 
 ```bash
 pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-pkg-config mingw-w64-ucrt-x86_64-glfw mingw-w64-ucrt-x86_64-glew mingw-w64-ucrt-x86_64-glm
@@ -18,8 +19,19 @@ pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-make mingw-w6
 
 ## Compile & Run
 
+Build and install Focus first. It copies `Focus.h` and `libFocus.a` into the
+UCRT64 toolchain (`C:\msys64\ucrt64\include` and `C:\msys64\ucrt64\lib`).
+
 ```bash
+cd ../Focus
+mingw32-make
+mingw32-make install
+
+cd ../Raymarcher
 mingw32-make
 Binaries/Raymarcher.exe
 ```
+
+Shaders are loaded and hot-reloaded by Focus. Focus is linked statically, so
+no extra DLL is shipped with Raymarcher.
 

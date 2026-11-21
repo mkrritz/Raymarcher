@@ -8,16 +8,14 @@
 #include "mkr/Camera.h"
 #include "mkr/Window.h"
 
-void RenderQuadToScreen(const Shader* const shaders[],
+void RenderQuadToScreen(const ShaderLibrary* const shaders,
                         const Camera* const camera,
                         const UI* const ui,
                         const GLuint texture,
                         const GLuint scene_handle) {
-    const Shader* shader = shaders[static_cast<uint32_t>(Shaders::DrawTexture)];
-    
     glBindSampler(0, camera->sampler_clamp_linear);
     
-    glUseProgram(shader->ID);
+    glUseProgram(ShaderLibraryProgram(shaders, (size_t)Shaders::DrawTexture));
     glBindBufferBase(GL_UNIFORM_BUFFER, 2, ui->ubo_handle[static_cast<uint32_t>(Quads::SCREEN)]);
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, scene_handle);
     glBindTextureUnit(0, texture);

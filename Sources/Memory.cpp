@@ -17,7 +17,6 @@ static Heap* HeapInit(size_t size) {
 void HeapsInit(Heap* heaps[]) {
     heaps[static_cast<uint32_t>(Heaps::Camera)]  = HeapInit(1024);
     heaps[static_cast<uint32_t>(Heaps::UI)]      = HeapInit(1024);
-    heaps[static_cast<uint32_t>(Heaps::Shader)]  = HeapInit(10 * 1024);
     
 }
 
