@@ -17,12 +17,12 @@ static GLuint Sampler(GLuint wrap, GLuint filter) {
     return s;
 }
 
-void UpdateCamera(const ShaderLibrary* const shaders,
+void UpdateCamera(const Focus* const shaders,
                   Camera* const camera,
                   GLuint scene_handle,
                   float TotalTime,
                   float dt) {
-    glUseProgram(ShaderLibraryProgram(shaders, (size_t)Shaders::View));
+    glUseProgram(GetShader(shaders, (size_t)Shaders::View));
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, scene_handle);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, camera->inverse_view_buffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, camera->position_buffer);

@@ -21,7 +21,7 @@ void HeapsInit(Heap*[]);
 
 // Camera
 void CameraInit(Heap* const);
-void UpdateCamera(const ShaderLibrary* const,
+void UpdateCamera(const Focus* const,
                   Camera* const,
                   GLuint,
                   float,
@@ -40,7 +40,7 @@ Input* NextRecordedInputState();
 
 // UI
 void UIInit(Heap* const);
-void RenderQuadToScreen(const ShaderLibrary* const,
+void RenderQuadToScreen(const Focus* const,
                         const Camera* const,
                         const UI* const,
                         const GLuint,
@@ -54,7 +54,7 @@ static uint32_t events = 0;
 static uint32_t using_sampler= 0;
 static uint32_t using_volume_sampler = 0;
 
-static void Render(const ShaderLibrary* const shaders,
+static void Render(const Focus* const shaders,
                    const Camera* const camera,
                    const UI* const ui,
                    GLuint scene_handle,
@@ -85,7 +85,7 @@ static void Render(const ShaderLibrary* const shaders,
         }
     }
     
-    glUseProgram(ShaderLibraryProgram(shaders, (size_t)Shaders::Raymarch));
+    glUseProgram(GetShader(shaders, (size_t)Shaders::Raymarch));
     glBindBufferBase(GL_UNIFORM_BUFFER, 2, ui->ubo_handle[static_cast<uint32_t>(Quads::RAYMARCH)]);
     glBindBufferBase(GL_UNIFORM_BUFFER, 1, camera->ubo_handle);
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, scene_handle);
@@ -318,7 +318,7 @@ int main() {
     HeapsInit(heaps);
     
     ShaderLog shaderLog = { ShaderLogWrite, nullptr };
-    ShaderLibrary* shaders = ShaderLibraryOpen("Shaders/",
+    Focus* shaders = FocusOpen("Shaders/",
                                                FocusShaderPrograms,
                                                FocusShaderProgramCount,
                                                &shaderLog,
@@ -412,7 +412,7 @@ int main() {
         UpdateCount += 1;
         glfwPollEvents();
         
-        ShaderLibraryReloadChanged(shaders);
+        ReloadShaders(shaders);
         
         while(AccumulatorTime >= dt) {
             AccumulatorTime -= dt;
@@ -453,7 +453,7 @@ int main() {
         glfwSwapBuffers(window);
     }
     
-    ShaderLibraryClose(shaders);
+    FocusClose(shaders);
     glfwDestroyWindow(window);
     glfwTerminate();
 
