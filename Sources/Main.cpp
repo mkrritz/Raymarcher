@@ -1,6 +1,5 @@
 
 #include "pch.h"
-#include <cstdlib>
 
 #include "mkr/Assert.h"
 #include "mkr/Input.h"
@@ -21,18 +20,12 @@ void HeapsInit(Heap*[]);
 
 // Camera
 void CameraInit(Heap* const);
-void UpdateCamera(const Focus* const,
+void UpdateCamera(const Focus*,
                   Camera* const,
                   GLuint,
                   float,
                   float);
 // Camera
-
-// Shader
-static void ShaderLogWrite(void*, const char* text) {
-    printf("%s\n", text);
-}
-// Shader
 
 // Input
 Input* NextRecordedInputState();
@@ -40,7 +33,7 @@ Input* NextRecordedInputState();
 
 // UI
 void UIInit(Heap* const);
-void RenderQuadToScreen(const Focus* const,
+void RenderQuadToScreen(const Focus*,
                         const Camera* const,
                         const UI* const,
                         const GLuint,
@@ -54,7 +47,7 @@ static uint32_t events = 0;
 static uint32_t using_sampler= 0;
 static uint32_t using_volume_sampler = 0;
 
-static void Render(const Focus* const shaders,
+static void Render(const Focus* shaders,
                    const Camera* const camera,
                    const UI* const ui,
                    GLuint scene_handle,
@@ -317,12 +310,12 @@ int main() {
     Heap* heaps[static_cast<uint32_t>(Heaps::Count)] = {nullptr};
     HeapsInit(heaps);
     
-    ShaderLog shaderLog = { ShaderLogWrite, nullptr };
+    ShaderLog shaderLog = { FocusConsoleLog, nullptr };
     Focus* shaders = FocusOpen("Shaders/",
-                                               FocusShaderPrograms,
-                                               FocusShaderProgramCount,
-                                               &shaderLog,
-                                               1);
+                               Programs,
+                               static_cast<size_t>(Shaders::Count),
+                               &shaderLog,
+                               true);
     ASSERT(shaders == nullptr, "Shader library failed to open.");
     
     CameraInit(heaps[static_cast<uint32_t>(Heaps::Camera)]);

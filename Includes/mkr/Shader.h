@@ -10,7 +10,6 @@ enum struct Shaders {
     Count // Not really a shader.
 };
 
-extern const ShaderConfig FocusShaderPrograms[];
-extern const size_t FocusShaderProgramCount;
+extern ShaderConfig Programs[];
 
 #endif

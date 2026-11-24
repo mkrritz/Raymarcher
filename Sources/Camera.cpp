@@ -17,7 +17,7 @@ static GLuint Sampler(GLuint wrap, GLuint filter) {
     return s;
 }
 
-void UpdateCamera(const Focus* const shaders,
+void UpdateCamera(const Focus* shaders,
                   Camera* const camera,
                   GLuint scene_handle,
                   float TotalTime,
